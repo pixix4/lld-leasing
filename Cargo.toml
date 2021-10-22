@@ -1,10 +1,8 @@
 [package]
 name = "lld-leasing"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 authors = ["Lars Westermann <lars.westermann@tu-dresden.de>"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -14,3 +12,5 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlite = "0.26"
 clap = "3.0.0-beta.5"
+rand = "0.8"
+base64 = "0.13"

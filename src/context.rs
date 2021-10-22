@@ -6,13 +6,21 @@ use crate::{database::Database, LldResult};
 
 #[derive(Debug)]
 pub enum LeasingResponse {
-    Success { id: String, validity: i64 },
-    Error { id: String },
+    Success {
+        instance_id: String,
+        application_id: String,
+        validity: i64,
+    },
+    Error {
+        instance_id: String,
+        application_id: String,
+    },
 }
 
 #[derive(Debug)]
 struct ContextQueueEntry {
-    id: String,
+    instance_id: String,
+    application_id: String,
     tx: oneshot::Sender<LeasingResponse>,
 }
 
@@ -51,20 +59,19 @@ impl Context {
     }
 
     async fn run_tasks(&self, tasks: Vec<ContextQueueEntry>, db: &Database) -> LldResult<()> {
-        println!("---- run tasks ----");
-        for task in &tasks {
-            println!("Request for {}", task.id);
-        }
-
         for task in tasks {
-            let lease = db.request_leasing(&task.id)?;
+            let lease = db.request_leasing(&task.instance_id, &task.application_id)?;
 
             let response = match lease {
                 Some(validity) => LeasingResponse::Success {
-                    id: task.id,
+                    instance_id: task.instance_id,
+                    application_id: task.application_id,
                     validity,
                 },
-                None => LeasingResponse::Error { id: task.id },
+                None => LeasingResponse::Error {
+                    instance_id: task.instance_id,
+                    application_id: task.application_id,
+                },
             };
 
             if let Err(e) = task.tx.send(response) {
@@ -75,11 +82,19 @@ impl Context {
         Ok(())
     }
 
-    pub async fn request_leasing(&self, id: String) -> oneshot::Receiver<LeasingResponse> {
+    pub async fn request_leasing(
+        &self,
+        instance_id: String,
+        application_id: String,
+    ) -> oneshot::Receiver<LeasingResponse> {
         let (tx, rx) = oneshot::channel();
 
         let mut queue = self.queue.write().await;
-        queue.push(ContextQueueEntry { id, tx });
+        queue.push(ContextQueueEntry {
+            instance_id,
+            application_id,
+            tx,
+        });
         self.notify.notify_one();
 
         rx

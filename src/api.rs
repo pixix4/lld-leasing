@@ -5,15 +5,23 @@ use crate::context::Context;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RestLeasingRequest {
-    id: String,
+    instance_id: String,
+    application_id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "lowercase")]
 pub enum RestLeasingResponse {
-    Success { id: String, validity: i64 },
-    Error { id: String },
+    Success {
+        instance_id: String,
+        application_id: String,
+        validity: i64,
+    },
+    Error {
+        instance_id: String,
+        application_id: String,
+    },
 }
 
 pub async fn start_server(context: Context) {
@@ -66,20 +74,35 @@ mod handlers {
         request: RestLeasingRequest,
         context: Context,
     ) -> Result<impl warp::Reply, Infallible> {
-        let rx = context.request_leasing(request.id.clone()).await;
+        let rx = context
+            .request_leasing(request.instance_id.clone(), request.application_id.clone())
+            .await;
         let response = rx.await;
 
         Ok(match response {
             Err(e) => {
                 eprintln!("Error while waiting for database result {}", e);
-                warp::reply::json(&RestLeasingResponse::Error { id: request.id })
+                warp::reply::json(&RestLeasingResponse::Error {
+                    instance_id: request.instance_id,
+                    application_id: request.application_id,
+                })
             }
-            Ok(LeasingResponse::Success { id, validity }) => {
-                warp::reply::json(&RestLeasingResponse::Success { id, validity })
-            }
-            Ok(LeasingResponse::Error { id }) => {
-                warp::reply::json(&RestLeasingResponse::Error { id })
-            }
+            Ok(LeasingResponse::Success {
+                instance_id,
+                application_id,
+                validity,
+            }) => warp::reply::json(&RestLeasingResponse::Success {
+                instance_id,
+                application_id,
+                validity,
+            }),
+            Ok(LeasingResponse::Error {
+                instance_id,
+                application_id,
+            }) => warp::reply::json(&RestLeasingResponse::Error {
+                instance_id,
+                application_id,
+            }),
         })
     }
 }

@@ -21,40 +21,45 @@ impl Database {
 
         connection.execute(
             r#"CREATE TABLE leasings (
-    id TEXT NOT NULL PRIMARY KEY,
-    validity INTEGER NOT NULL
+                instance_id TEXT NOT NULL,
+                application_id TEXT NOT NULL PRIMARY KEY,
+                validity INTEGER NOT NULL
 );"#,
         )?;
 
         Ok(Self { connection })
     }
 
-    pub fn request_leasing(&self, id: &str) -> LldResult<Option<i64>> {
+    pub fn request_leasing(
+        &self,
+        instance_id: &str,
+        application_id: &str,
+    ) -> LldResult<Option<i64>> {
         let now = get_current_time();
 
-        println!("# Request leasing for {}", id);
         let mut statement = self
             .connection
-            .prepare("SELECT id, validity FROM leasings WHERE id = ?")?;
+            .prepare("SELECT instance_id, validity FROM leasings WHERE application_id = ?")?;
 
-        statement.bind(1, id)?;
+        statement.bind(1, application_id)?;
 
-        let mut found: Option<i64> = None;
+        let mut found: Option<(String, i64)> = None;
         while let State::Row = statement.next()? {
-            found = Some(statement.read::<i64>(1)?);
+            found = Some((statement.read::<String>(0)?, statement.read::<i64>(1)?));
         }
 
         Ok(match found {
-            Some(validity) => {
-                if validity > now {
+            Some((leased_instance_id, validity)) => {
+                if validity > now && leased_instance_id != instance_id {
                     None
                 } else {
                     let mut statement = self
                         .connection
-                        .prepare("UPDATE leasings SET validity = ? WHERE id = ?")?;
+                        .prepare("UPDATE leasings SET validity = ?, instance_id = ? WHERE application_id = ?")?;
 
                     statement.bind(1, now + 5000)?;
-                    statement.bind(2, id)?;
+                    statement.bind(2, instance_id)?;
+                    statement.bind(3, application_id)?;
 
                     statement.next()?;
 
@@ -62,12 +67,13 @@ impl Database {
                 }
             }
             None => {
-                let mut statement = self
-                    .connection
-                    .prepare("INSERT INTO leasings (id, validity) VALUES (?, ?)")?;
+                let mut statement = self.connection.prepare(
+                    "INSERT INTO leasings (instance_id, application_id, validity) VALUES (?, ?, ?)",
+                )?;
 
-                statement.bind(1, id)?;
-                statement.bind(2, now + 5000)?;
+                statement.bind(1, instance_id)?;
+                statement.bind(2, application_id)?;
+                statement.bind(3, now + 5000)?;
 
                 statement.next()?;
                 Some(now + 5000)

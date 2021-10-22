@@ -6,18 +6,22 @@ use std::{
 
 use clap::Parser;
 use hyper::{Body, Client, Method, Request};
+use rand::{thread_rng, RngCore};
 use tokio::{spawn, sync::mpsc, time::sleep};
 
 use lld_leasing::{api::RestLeasingResponse, database::get_current_time, LldResult};
 
-async fn request(id: &str) -> LldResult<Option<i64>> {
+async fn request(instance_id: &str, application_id: &str) -> LldResult<Option<i64>> {
     let client = Client::new();
 
     let req = Request::builder()
         .method(Method::POST)
         .uri("http://localhost:3030/request")
         .header("content-type", "application/json")
-        .body(Body::from(format!("{{\"id\":\"{}\"}}", id)))?;
+        .body(Body::from(format!(
+            "{{\"instance_id\":\"{}\", \"application_id\":\"{}\"}}",
+            instance_id, application_id
+        )))?;
 
     let mut resp = client.request(req).await?;
 
@@ -27,8 +31,15 @@ async fn request(id: &str) -> LldResult<Option<i64>> {
     let response: RestLeasingResponse = serde_json::from_str(&result)?;
 
     Ok(match response {
-        RestLeasingResponse::Success { id: _, validity } => Some(validity),
-        RestLeasingResponse::Error { id: _ } => None,
+        RestLeasingResponse::Success {
+            instance_id: _,
+            application_id: _,
+            validity,
+        } => Some(validity),
+        RestLeasingResponse::Error {
+            instance_id: _,
+            application_id: _,
+        } => None,
     })
 }
 
@@ -39,10 +50,12 @@ async fn request(id: &str) -> LldResult<Option<i64>> {
 )]
 struct Opts {
     id: String,
+    #[clap(default_value = "50")]
+    threshold: i64,
 }
 
 async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
-    let mut validity = get_current_time();
+    let mut validity = rx.recv().await.unwrap_or_else(|| get_current_time());
 
     loop {
         if let Ok(v) = rx.try_recv() {
@@ -57,30 +70,76 @@ async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
     }
 }
 
-async fn run_leasing_client_task(id: &str, tx: mpsc::Sender<i64>) -> LldResult<i32> {
+async fn run_single_leasing_client(instance_id: &str, application_id: &str) -> LldResult<i64> {
+    match request(instance_id, application_id).await? {
+        Some(validity) => {
+            return Ok(validity);
+        }
+        None => {
+            println!("Could not get leasing, aborting!");
+            exit(1);
+        }
+    }
+}
+
+async fn run_leasing_client_task(
+    instance_id: &str,
+    application_id: &str,
+    threshold: i64,
+    tx: mpsc::Sender<i64>,
+    init_validity: i64,
+) -> LldResult<i32> {
+    let now = get_current_time();
+    let runtime = (init_validity - now) * threshold / 100;
+    sleep(Duration::from_millis(runtime as u64)).await;
+
     loop {
-        match request(id).await? {
+        match request(instance_id, application_id).await? {
             Some(validity) => {
                 let now = get_current_time();
 
                 tx.send(validity).await?;
-                let runtime = validity - now;
+                let runtime = (validity - now) * threshold / 100;
                 sleep(Duration::from_millis(runtime as u64)).await;
             }
             None => {
+                println!("Could not get leasing, aborting!");
                 exit(1);
             }
         }
     }
 }
 
+fn generate_random_id<const T: usize>() -> String {
+    let mut buffer = [0u8; T];
+    thread_rng().fill_bytes(&mut buffer);
+    base64::encode(&buffer)
+}
+
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
+    let instance_id = generate_random_id::<64>();
 
     let (tx, rx) = mpsc::channel::<i64>(8);
 
-    println!("Start leasing client with id '{}'", &opts.id);
+    println!("Configuration:");
+    println!("    application_id: '{}'", &opts.id);
+    println!("    instance_id: '{}'", &instance_id);
+    println!("    threshold: '{}'", opts.threshold);
+    println!();
+
+    let init_validity;
+    match run_single_leasing_client(&instance_id, &opts.id).await {
+        Ok(validity) => {
+            init_validity = validity;
+        }
+        Err(e) => {
+            eprintln!("{:?}", e);
+            exit(1);
+        }
+    }
+
     spawn(async move {
         match run_background_task(rx).await {
             Ok(_) => exit(0),
@@ -91,7 +150,10 @@ async fn main() {
         }
     });
 
-    match run_leasing_client_task(&opts.id, tx).await {
+    if tx.send(init_validity).await.is_err() {
+        exit(1)
+    }
+    match run_leasing_client_task(&instance_id, &opts.id, opts.threshold, tx, init_validity).await {
         Ok(code) => exit(code),
         Err(e) => {
             eprintln!("{:?}", e);
