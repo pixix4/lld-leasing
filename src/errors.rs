@@ -42,6 +42,12 @@ impl From<std::io::Error> for LldError {
     }
 }
 
+impl From<tokio::task::JoinError> for LldError {
+    fn from(error: tokio::task::JoinError) -> Self {
+        LldError::WrappedError("tokio join error", format!("{}", error))
+    }
+}
+
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for LldError {
     fn from(error: tokio::sync::mpsc::error::SendError<T>) -> Self {
         LldError::WrappedError("tokio mpsc send error", format!("{}", error))

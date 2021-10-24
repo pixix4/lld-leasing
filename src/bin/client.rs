@@ -5,43 +5,12 @@ use std::{
 };
 
 use clap::Parser;
-use hyper::{Body, Client, Method, Request};
-use rand::{thread_rng, RngCore};
 use tokio::{spawn, sync::mpsc, time::sleep};
 
-use lld_leasing::{api::RestLeasingResponse, database::get_current_time, LldResult};
-
-async fn request(instance_id: &str, application_id: &str) -> LldResult<Option<i64>> {
-    let client = Client::new();
-
-    let req = Request::builder()
-        .method(Method::POST)
-        .uri("http://localhost:3030/request")
-        .header("content-type", "application/json")
-        .body(Body::from(format!(
-            "{{\"instance_id\":\"{}\", \"application_id\":\"{}\"}}",
-            instance_id, application_id
-        )))?;
-
-    let mut resp = client.request(req).await?;
-
-    let bytes = hyper::body::to_bytes(resp.body_mut()).await?;
-    let result = String::from_utf8(bytes.into_iter().collect())?;
-
-    let response: RestLeasingResponse = serde_json::from_str(&result)?;
-
-    Ok(match response {
-        RestLeasingResponse::Success {
-            instance_id: _,
-            application_id: _,
-            validity,
-        } => Some(validity),
-        RestLeasingResponse::Error {
-            instance_id: _,
-            application_id: _,
-        } => None,
-    })
-}
+use lld_leasing::{
+    utils::{generate_random_id, get_current_time, http_request_leasing},
+    LldResult,
+};
 
 #[derive(Parser)]
 #[clap(
@@ -55,7 +24,7 @@ struct Opts {
 }
 
 async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
-    let mut validity = rx.recv().await.unwrap_or_else(|| get_current_time());
+    let mut validity = rx.recv().await.unwrap_or_else(get_current_time);
 
     loop {
         if let Ok(v) = rx.try_recv() {
@@ -71,12 +40,10 @@ async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
 }
 
 async fn run_single_leasing_client(instance_id: &str, application_id: &str) -> LldResult<i64> {
-    match request(instance_id, application_id).await? {
-        Some(validity) => {
-            return Ok(validity);
-        }
+    match http_request_leasing(instance_id, application_id).await? {
+        Some(validity) => Ok(validity),
         None => {
-            println!("Could not get leasing, aborting!");
+            eprintln!("Could not get leasing, aborting!");
             exit(1);
         }
     }
@@ -94,7 +61,7 @@ async fn run_leasing_client_task(
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match request(instance_id, application_id).await? {
+        match http_request_leasing(instance_id, application_id).await? {
             Some(validity) => {
                 let now = get_current_time();
 
@@ -103,17 +70,11 @@ async fn run_leasing_client_task(
                 sleep(Duration::from_millis(runtime as u64)).await;
             }
             None => {
-                println!("Could not get leasing, aborting!");
+                eprintln!("Could not get leasing, aborting!");
                 exit(1);
             }
         }
     }
-}
-
-fn generate_random_id<const T: usize>() -> String {
-    let mut buffer = [0u8; T];
-    thread_rng().fill_bytes(&mut buffer);
-    base64::encode(&buffer)
 }
 
 #[tokio::main]
@@ -142,7 +103,10 @@ async fn main() {
 
     spawn(async move {
         match run_background_task(rx).await {
-            Ok(_) => exit(0),
+            Ok(_) => {
+                println!("Background task finished");
+                exit(0);
+            }
             Err(e) => {
                 eprintln!("{:?}", e);
                 exit(1);
@@ -151,10 +115,14 @@ async fn main() {
     });
 
     if tx.send(init_validity).await.is_err() {
+        eprintln!("Could not initiate background task!");
         exit(1)
     }
     match run_leasing_client_task(&instance_id, &opts.id, opts.threshold, tx, init_validity).await {
-        Ok(code) => exit(code),
+        Ok(code) => {
+            println!("Leasing task finished!");
+            exit(code);
+        }
         Err(e) => {
             eprintln!("{:?}", e);
             exit(1);
