@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use hyper::{Body, Client, Method, Request};
 use rand::{thread_rng, RngCore};
 
-use crate::{api::RestLeasingResponse, LldResult};
+use crate::{api::RestLeasingResponse, env, LldResult};
 
 pub async fn http_request_leasing(
     instance_id: &str,
@@ -13,7 +13,7 @@ pub async fn http_request_leasing(
 
     let req = Request::builder()
         .method(Method::POST)
-        .uri("http://localhost:3030/request")
+        .uri(env::REQUEST_URI.as_str())
         .header("content-type", "application/json")
         .body(Body::from(format!(
             "{{\"instance_id\":\"{}\", \"application_id\":\"{}\"}}",

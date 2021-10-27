@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use warp::Filter;
 
-use crate::context::Context;
+use crate::{context::Context, env};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RestLeasingRequest {
@@ -27,7 +27,7 @@ pub enum RestLeasingResponse {
 pub async fn start_server(context: Context) {
     let api = filters::leasing(context);
     let routes = api.with(warp::log("leasing"));
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], *env::PORT)).await;
 }
 
 mod filters {

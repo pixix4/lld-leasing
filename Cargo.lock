@@ -424,6 +424,7 @@ dependencies = [
  "base64",
  "clap",
  "hyper",
+ "lazy_static",
  "rand 0.8.4",
  "serde",
  "serde_json",
