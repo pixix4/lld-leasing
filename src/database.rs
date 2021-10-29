@@ -1,15 +1,6 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use sqlite::{Connection, State};
 
-use crate::LldResult;
-
-pub fn get_current_time() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_millis() as i64
-}
+use crate::{utils::get_current_time, LldResult};
 
 pub struct Database {
     connection: Connection,
@@ -34,7 +25,8 @@ impl Database {
         &self,
         instance_id: &str,
         application_id: &str,
-    ) -> LldResult<Option<i64>> {
+        duration: u64,
+    ) -> LldResult<Option<u64>> {
         let now = get_current_time();
 
         let mut statement = self
@@ -50,6 +42,7 @@ impl Database {
 
         Ok(match found {
             Some((leased_instance_id, validity)) => {
+                let validity = validity as u64;
                 if validity > now && leased_instance_id != instance_id {
                     None
                 } else {
@@ -57,13 +50,13 @@ impl Database {
                         .connection
                         .prepare("UPDATE leasings SET validity = ?, instance_id = ? WHERE application_id = ?")?;
 
-                    statement.bind(1, now + 5000)?;
+                    statement.bind(1, (now + duration) as i64)?;
                     statement.bind(2, instance_id)?;
                     statement.bind(3, application_id)?;
 
                     statement.next()?;
 
-                    Some(now + 5000)
+                    Some(now + duration)
                 }
             }
             None => {
@@ -73,10 +66,10 @@ impl Database {
 
                 statement.bind(1, instance_id)?;
                 statement.bind(2, application_id)?;
-                statement.bind(3, now + 5000)?;
+                statement.bind(3, (now + duration) as i64)?;
 
                 statement.next()?;
-                Some(now + 5000)
+                Some(now + duration)
             }
         })
     }

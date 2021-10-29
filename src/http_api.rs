@@ -7,6 +7,7 @@ use crate::{context::Context, env};
 pub struct RestLeasingRequest {
     instance_id: String,
     application_id: String,
+    duration: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -16,7 +17,7 @@ pub enum RestLeasingResponse {
     Success {
         instance_id: String,
         application_id: String,
-        validity: i64,
+        validity: u64,
     },
     Error {
         instance_id: String,
@@ -27,7 +28,9 @@ pub enum RestLeasingResponse {
 pub async fn start_server(context: Context) {
     let api = filters::leasing(context);
     let routes = api.with(warp::log("leasing"));
-    warp::serve(routes).run(([0, 0, 0, 0], *env::PORT)).await;
+    warp::serve(routes)
+        .run(([0, 0, 0, 0], *env::HTTP_PORT))
+        .await;
 }
 
 mod filters {
@@ -75,7 +78,11 @@ mod handlers {
         context: Context,
     ) -> Result<impl warp::Reply, Infallible> {
         let rx = context
-            .request_leasing(request.instance_id.clone(), request.application_id.clone())
+            .request_leasing(
+                request.instance_id.clone(),
+                request.application_id.clone(),
+                request.duration,
+            )
             .await;
         let response = rx.await;
 

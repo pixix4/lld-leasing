@@ -422,6 +422,7 @@ name = "lld-leasing"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "byteorder",
  "clap",
  "hyper",
  "lazy_static",

@@ -9,7 +9,7 @@ pub enum LeasingResponse {
     Success {
         instance_id: String,
         application_id: String,
-        validity: i64,
+        validity: u64,
     },
     Error {
         instance_id: String,
@@ -21,6 +21,7 @@ pub enum LeasingResponse {
 struct ContextQueueEntry {
     instance_id: String,
     application_id: String,
+    duration: u64,
     tx: oneshot::Sender<LeasingResponse>,
 }
 
@@ -60,7 +61,8 @@ impl Context {
 
     async fn run_tasks(&self, tasks: Vec<ContextQueueEntry>, db: &Database) -> LldResult<()> {
         for task in tasks {
-            let lease = db.request_leasing(&task.instance_id, &task.application_id)?;
+            let lease =
+                db.request_leasing(&task.instance_id, &task.application_id, task.duration)?;
 
             let response = match lease {
                 Some(validity) => LeasingResponse::Success {
@@ -86,13 +88,19 @@ impl Context {
         &self,
         instance_id: String,
         application_id: String,
+        duration: u64,
     ) -> oneshot::Receiver<LeasingResponse> {
         let (tx, rx) = oneshot::channel();
 
+        println!(
+            "Request leasing for {} with duration {}",
+            application_id, duration
+        );
         let mut queue = self.queue.write().await;
         queue.push(ContextQueueEntry {
             instance_id,
             application_id,
+            duration,
             tx,
         });
         self.notify.notify_one();

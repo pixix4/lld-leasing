@@ -16,5 +16,6 @@ docker run --rm pixix4/lld:latest client "application-id"
 ## Benchmark
 
 ```bash
-docker run --rm pixix4/lld:latest benchmark --max=10 --repeat=4
+docker run --rm pixix4/lld:latest benchmark --max=10 --repeat=4 > logs/benchmark.csv
+python3 benchmark.py
 ```

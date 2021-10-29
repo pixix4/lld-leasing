@@ -19,11 +19,13 @@ use lld_leasing::{
 )]
 struct Opts {
     id: String,
+    #[clap(default_value = "5000")]
+    duration: u64,
     #[clap(default_value = "50")]
-    threshold: i64,
+    threshold: u64,
 }
 
-async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
+async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
     let mut validity = rx.recv().await.unwrap_or_else(get_current_time);
 
     loop {
@@ -39,8 +41,12 @@ async fn run_background_task(mut rx: mpsc::Receiver<i64>) -> LldResult<()> {
     }
 }
 
-async fn run_single_leasing_client(instance_id: &str, application_id: &str) -> LldResult<i64> {
-    match http_request_leasing(instance_id, application_id).await? {
+async fn run_single_leasing_client(
+    instance_id: &str,
+    application_id: &str,
+    duration: u64,
+) -> LldResult<u64> {
+    match http_request_leasing(instance_id, application_id, duration).await? {
         Some(validity) => Ok(validity),
         None => {
             eprintln!("Could not get leasing, aborting!");
@@ -52,16 +58,17 @@ async fn run_single_leasing_client(instance_id: &str, application_id: &str) -> L
 async fn run_leasing_client_task(
     instance_id: &str,
     application_id: &str,
-    threshold: i64,
-    tx: mpsc::Sender<i64>,
-    init_validity: i64,
+    duration: u64,
+    threshold: u64,
+    tx: mpsc::Sender<u64>,
+    init_validity: u64,
 ) -> LldResult<i32> {
     let now = get_current_time();
     let runtime = (init_validity - now) * threshold / 100;
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match http_request_leasing(instance_id, application_id).await? {
+        match http_request_leasing(instance_id, application_id, duration).await? {
             Some(validity) => {
                 let now = get_current_time();
 
@@ -82,16 +89,17 @@ async fn main() {
     let opts: Opts = Opts::parse();
     let instance_id = generate_random_id::<64>();
 
-    let (tx, rx) = mpsc::channel::<i64>(8);
+    let (tx, rx) = mpsc::channel::<u64>(8);
 
     println!("Configuration:");
     println!("    application_id: '{}'", &opts.id);
     println!("    instance_id: '{}'", &instance_id);
+    println!("    duration: '{}'", opts.duration);
     println!("    threshold: '{}'", opts.threshold);
     println!();
 
     let init_validity;
-    match run_single_leasing_client(&instance_id, &opts.id).await {
+    match run_single_leasing_client(&instance_id, &opts.id, opts.duration).await {
         Ok(validity) => {
             init_validity = validity;
         }
@@ -118,7 +126,16 @@ async fn main() {
         eprintln!("Could not initiate background task!");
         exit(1)
     }
-    match run_leasing_client_task(&instance_id, &opts.id, opts.threshold, tx, init_validity).await {
+    match run_leasing_client_task(
+        &instance_id,
+        &opts.id,
+        opts.duration,
+        opts.threshold,
+        tx,
+        init_validity,
+    )
+    .await
+    {
         Ok(code) => {
             println!("Leasing task finished!");
             exit(code);

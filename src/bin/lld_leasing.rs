@@ -1,6 +1,6 @@
 use lld_leasing::context::Context;
 use lld_leasing::database::Database;
-use lld_leasing::{api, LldResult};
+use lld_leasing::{http_api, tcp_api, LldResult};
 
 use tokio::spawn;
 
@@ -10,9 +10,14 @@ async fn main() -> LldResult<()> {
 
     let context = Context::new();
 
-    let api_context = context.clone();
+    let http_api_context = context.clone();
     spawn(async {
-        api::start_server(api_context).await;
+        http_api::start_server(http_api_context).await;
+    });
+
+    let tcp_api_context = context.clone();
+    spawn(async {
+        tcp_api::start_server(tcp_api_context).await;
     });
 
     context.run(db).await?;
