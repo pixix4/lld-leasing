@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use clap::Parser;
 use std::{
     process::{Command, Stdio},
@@ -51,7 +54,7 @@ async fn start_concurrent_connections_round(
                         }
                     }
                     Err(e) => {
-                        eprintln!("{:?}", e);
+                        error!("{:?}", e);
                         ResultType::Error
                     }
                 };
@@ -89,7 +92,7 @@ async fn start_concurrent_connections_round(
 struct Opts {
     #[clap(long, default_value = "4")]
     repeat: usize,
-    #[clap(long, default_value = "16")]
+    #[clap(long, default_value = "8")]
     max: usize,
     #[clap(default_value = "lld_leasing")]
     server_path: String,
@@ -97,8 +100,11 @@ struct Opts {
 
 async fn start_step(tcp: bool, count: usize, repeat: usize, server_path: &str) -> LldResult<()> {
     for _ in 0..repeat {
-        let mut child = Command::new(server_path).stdout(Stdio::null()).spawn()?;
-        sleep(Duration::from_millis(200)).await;
+        let mut child = Command::new(server_path)
+            .env("RUST_LOG", "ERROR")
+            .stdout(Stdio::null())
+            .spawn()?;
+        sleep(Duration::from_millis(1000)).await;
 
         let result = start_concurrent_connections_round(tcp, count).await;
 
@@ -128,6 +134,9 @@ async fn start_step(tcp: bool, count: usize, repeat: usize, server_path: &str) -
 
 #[tokio::main]
 async fn main() -> LldResult<()> {
+    dotenv::dotenv().ok();
+    env_logger::init();
+
     let opts: Opts = Opts::parse();
 
     let mut count = 1;

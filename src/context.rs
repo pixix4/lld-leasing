@@ -1,20 +1,16 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use tokio::sync::{oneshot, Notify, RwLock};
 
 use crate::{database::Database, LldResult};
 
+// pub type LldContext = ContextNaive;
+pub type LldContext = ContextBatching;
+
 #[derive(Debug)]
 pub enum LeasingResponse {
-    Success {
-        instance_id: String,
-        application_id: String,
-        validity: u64,
-    },
-    Error {
-        instance_id: String,
-        application_id: String,
-    },
+    Granted { validity: u64 },
+    Rejected,
 }
 
 #[derive(Debug)]
@@ -26,26 +22,53 @@ struct ContextQueueEntry {
 }
 
 #[derive(Debug, Clone)]
-pub struct Context {
+pub struct ContextNaive {}
+
+impl ContextNaive {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub async fn run(&self) -> LldResult<()> {
+        tokio::signal::ctrl_c().await?;
+        Ok(())
+    }
+
+    pub async fn request_leasing(
+        &self,
+        instance_id: String,
+        application_id: String,
+        duration: u64,
+    ) -> LldResult<LeasingResponse> {
+        debug!(
+            "Request leasing for {} with duration {}",
+            application_id, duration
+        );
+
+        let db = Database::open()?;
+        let lease = db.request_leasing(&instance_id, &application_id, duration)?;
+
+        let response = match lease {
+            Some(validity) => LeasingResponse::Granted { validity },
+            None => LeasingResponse::Rejected,
+        };
+        Ok(response)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextBatching {
     queue: Arc<RwLock<Vec<ContextQueueEntry>>>,
     notify: Arc<Notify>,
 }
 
-impl Context {
+impl ContextBatching {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             queue: Arc::new(RwLock::new(Vec::new())),
             notify: Arc::new(Notify::new()),
-        }
-    }
-
-    pub async fn run(&self, db: Database) -> LldResult<()> {
-        loop {
-            match self.check_tasks().await {
-                Some(tasks) => self.run_tasks(tasks, &db).await?,
-                None => self.notify.notified().await,
-            };
         }
     }
 
@@ -59,29 +82,34 @@ impl Context {
         }
     }
 
-    async fn run_tasks(&self, tasks: Vec<ContextQueueEntry>, db: &Database) -> LldResult<()> {
-        for task in tasks {
-            let lease =
-                db.request_leasing(&task.instance_id, &task.application_id, task.duration)?;
+    async fn run_task(&self, task: ContextQueueEntry, db: &Database) -> LldResult<()> {
+        let lease = db.request_leasing(&task.instance_id, &task.application_id, task.duration)?;
 
-            let response = match lease {
-                Some(validity) => LeasingResponse::Success {
-                    instance_id: task.instance_id,
-                    application_id: task.application_id,
-                    validity,
-                },
-                None => LeasingResponse::Error {
-                    instance_id: task.instance_id,
-                    application_id: task.application_id,
-                },
-            };
+        let response = match lease {
+            Some(validity) => LeasingResponse::Granted { validity },
+            None => LeasingResponse::Rejected,
+        };
 
-            if let Err(e) = task.tx.send(response) {
-                eprintln!("Cannot send leasing result to client! ({:?})", e)
-            }
+        if let Err(e) = task.tx.send(response) {
+            error!("Cannot send leasing result to client! ({:?})", e)
         }
 
         Ok(())
+    }
+
+    pub async fn run(&self) -> LldResult<()> {
+        loop {
+            match self.check_tasks().await {
+                Some(tasks) => {
+                    let db = Database::open()?;
+                    for task in tasks {
+                        let x = &db;
+                        self.run_task(task, x).await?;
+                    }
+                }
+                None => self.notify.notified().await,
+            };
+        }
     }
 
     pub async fn request_leasing(
@@ -89,22 +117,26 @@ impl Context {
         instance_id: String,
         application_id: String,
         duration: u64,
-    ) -> oneshot::Receiver<LeasingResponse> {
-        let (tx, rx) = oneshot::channel();
-
-        println!(
+    ) -> LldResult<LeasingResponse> {
+        debug!(
             "Request leasing for {} with duration {}",
             application_id, duration
         );
-        let mut queue = self.queue.write().await;
-        queue.push(ContextQueueEntry {
-            instance_id,
-            application_id,
-            duration,
-            tx,
-        });
+
+        let (tx, rx) = oneshot::channel();
+
+        {
+            let mut queue = self.queue.write().await;
+            queue.push(ContextQueueEntry {
+                instance_id,
+                application_id,
+                duration,
+                tx,
+            });
+        }
         self.notify.notify_one();
 
-        rx
+        let response = rx.await?;
+        Ok(response)
     }
 }

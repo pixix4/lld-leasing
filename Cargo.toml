@@ -5,14 +5,28 @@ edition = "2021"
 authors = ["Lars Westermann <lars.westermann@tu-dresden.de>"]
 
 [dependencies]
+# async runtime
 tokio = { version = "1", features = ["full"] }
+
+# http client/server
 hyper = "0.14"
 warp = "0.3"
+
+# json serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# database
 sqlite = "0.26"
-clap = "3.0.0-beta.5"
+
+# utils
 rand = "0.8"
 base64 = "0.13"
 lazy_static = "1.4"
 byteorder = "1.4"
+dotenv = "0.15"
+
+# ui
+clap = "3.0.0-beta.5"
+log = "0.4"
+env_logger = "0.9"

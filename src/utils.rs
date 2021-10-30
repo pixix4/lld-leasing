@@ -5,7 +5,11 @@ use hyper::{Body, Client, Method, Request};
 use rand::{thread_rng, RngCore};
 use tokio::net::TcpStream;
 
-use crate::{env, http_api::RestLeasingResponse, LldResult};
+use crate::{
+    env,
+    http_api::{RestLeasingRequest, RestLeasingResponse},
+    LldResult,
+};
 
 pub async fn http_request_leasing(
     instance_id: &str,
@@ -14,14 +18,17 @@ pub async fn http_request_leasing(
 ) -> LldResult<Option<u64>> {
     let client = Client::new();
 
+    let request = RestLeasingRequest {
+        instance_id: instance_id.to_owned(),
+        application_id: application_id.to_owned(),
+        duration,
+    };
+
     let req = Request::builder()
         .method(Method::POST)
         .uri(env::HTTP_REQUEST_URI.as_str())
         .header("content-type", "application/json")
-        .body(Body::from(format!(
-            "{{\"instance_id\":\"{}\", \"application_id\":\"{}\", \"duration\":{}}}",
-            instance_id, application_id, duration
-        )))?;
+        .body(Body::from(serde_json::to_vec(&request)?))?;
 
     let mut resp = client.request(req).await?;
 
@@ -31,15 +38,9 @@ pub async fn http_request_leasing(
     let response: RestLeasingResponse = serde_json::from_str(&result)?;
 
     Ok(match response {
-        RestLeasingResponse::Success {
-            instance_id: _,
-            application_id: _,
-            validity,
-        } => Some(validity),
-        RestLeasingResponse::Error {
-            instance_id: _,
-            application_id: _,
-        } => None,
+        RestLeasingResponse::Granted { validity } => Some(validity),
+        RestLeasingResponse::Rejected => None,
+        RestLeasingResponse::Error => None,
     })
 }
 

@@ -1,4 +1,8 @@
 lazy_static::lazy_static! {
+
+    pub static ref DATABASE_URI: String = std::env::var("DATABASE_URI")
+        .unwrap_or_else(|_| "./database.db".to_owned());
+
     pub static ref HTTP_PORT: u16 = std::env::var("HTTP_PORT")
         .unwrap_or_else(|_| "".to_string())
         .parse::<u16>()

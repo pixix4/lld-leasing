@@ -48,6 +48,12 @@ impl From<tokio::task::JoinError> for LldError {
     }
 }
 
+impl From<tokio::sync::oneshot::error::RecvError> for LldError {
+    fn from(error: tokio::sync::oneshot::error::RecvError) -> Self {
+        LldError::WrappedError("tokio oneshot receive errro", format!("{}", error))
+    }
+}
+
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for LldError {
     fn from(error: tokio::sync::mpsc::error::SendError<T>) -> Self {
         LldError::WrappedError("tokio mpsc send error", format!("{}", error))

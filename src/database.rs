@@ -1,24 +1,28 @@
 use sqlite::{Connection, State};
 
-use crate::{utils::get_current_time, LldResult};
+use crate::{env, utils::get_current_time, LldResult};
 
 pub struct Database {
     connection: Connection,
 }
 
 impl Database {
-    pub fn init() -> LldResult<Self> {
-        let connection = sqlite::open(":memory:")?;
+    pub fn open() -> LldResult<Self> {
+        let connection = sqlite::open(env::DATABASE_URI.as_str())?;
+        Ok(Self { connection })
+    }
 
-        connection.execute(
+    pub fn init(&self) -> LldResult<()> {
+        self.connection
+            .execute(r#"DROP TABLE IF EXISTS leasings;"#)?;
+        self.connection.execute(
             r#"CREATE TABLE leasings (
                 instance_id TEXT NOT NULL,
                 application_id TEXT NOT NULL PRIMARY KEY,
                 validity INTEGER NOT NULL
 );"#,
         )?;
-
-        Ok(Self { connection })
+        Ok(())
     }
 
     pub fn request_leasing(

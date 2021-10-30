@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use std::{
     io::{self, Write},
     process::exit,
@@ -49,7 +52,7 @@ async fn run_single_leasing_client(
     match http_request_leasing(instance_id, application_id, duration).await? {
         Some(validity) => Ok(validity),
         None => {
-            eprintln!("Could not get leasing, aborting!");
+            error!("Could not get leasing, aborting!");
             exit(1);
         }
     }
@@ -77,7 +80,7 @@ async fn run_leasing_client_task(
                 sleep(Duration::from_millis(runtime as u64)).await;
             }
             None => {
-                eprintln!("Could not get leasing, aborting!");
+                error!("Could not get leasing, aborting!");
                 exit(1);
             }
         }
@@ -86,17 +89,20 @@ async fn run_leasing_client_task(
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
+    env_logger::init();
+
     let opts: Opts = Opts::parse();
     let instance_id = generate_random_id::<64>();
 
     let (tx, rx) = mpsc::channel::<u64>(8);
 
-    println!("Configuration:");
-    println!("    application_id: '{}'", &opts.id);
-    println!("    instance_id: '{}'", &instance_id);
-    println!("    duration: '{}'", opts.duration);
-    println!("    threshold: '{}'", opts.threshold);
-    println!();
+    info!("Configuration:");
+    info!("    application_id: '{}'", &opts.id);
+    info!("    instance_id: '{}'", &instance_id);
+    info!("    duration: '{}'", opts.duration);
+    info!("    threshold: '{}'", opts.threshold);
+    info!("");
 
     let init_validity;
     match run_single_leasing_client(&instance_id, &opts.id, opts.duration).await {
@@ -104,7 +110,7 @@ async fn main() {
             init_validity = validity;
         }
         Err(e) => {
-            eprintln!("{:?}", e);
+            error!("{:?}", e);
             exit(1);
         }
     }
@@ -112,18 +118,18 @@ async fn main() {
     spawn(async move {
         match run_background_task(rx).await {
             Ok(_) => {
-                println!("Background task finished");
+                info!("Background task finished");
                 exit(0);
             }
             Err(e) => {
-                eprintln!("{:?}", e);
+                error!("{:?}", e);
                 exit(1);
             }
         }
     });
 
     if tx.send(init_validity).await.is_err() {
-        eprintln!("Could not initiate background task!");
+        error!("Could not initiate background task!");
         exit(1)
     }
     match run_leasing_client_task(
@@ -137,11 +143,11 @@ async fn main() {
     .await
     {
         Ok(code) => {
-            println!("Leasing task finished!");
+            info!("Leasing task finished!");
             exit(code);
         }
         Err(e) => {
-            eprintln!("{:?}", e);
+            error!("{:?}", e);
             exit(1);
         }
     }

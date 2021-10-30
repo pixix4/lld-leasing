@@ -17,7 +17,7 @@ def main():
         'Response time relative to number of concurrent connections')
     fig.legend()
 
-    plt.semilogy()
+    # plt.semilogy()
     plt.tight_layout()
     plt.savefig('logs/response-time.png')
     plt.clf()
