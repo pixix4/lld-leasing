@@ -14,9 +14,10 @@ def main():
     fig.set_xlabel('Number of concurrent connections')
     fig.set_ylabel('Response time [ms]')
     fig.set_title(
-        'Response times relative to number of concurrent connections')
+        'Response time relative to number of concurrent connections')
     fig.legend()
 
+    plt.semilogy()
     plt.tight_layout()
     plt.savefig('logs/response-time.png')
     plt.clf()

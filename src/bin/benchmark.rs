@@ -14,9 +14,9 @@ use lld_leasing::{
 use tokio::{spawn, task::JoinHandle, time::sleep};
 
 enum ResultType {
-    GRANTED,
-    REJECTED,
-    ERROR,
+    Granted,
+    Rejected,
+    Error,
 }
 
 async fn request(tcp: bool) -> LldResult<bool> {
@@ -45,14 +45,14 @@ async fn start_concurrent_connections_round(
                 let result_type = match request(tcp).await {
                     Ok(result) => {
                         if result {
-                            ResultType::GRANTED
+                            ResultType::Granted
                         } else {
-                            ResultType::REJECTED
+                            ResultType::Rejected
                         }
                     }
                     Err(e) => {
                         eprintln!("{:?}", e);
-                        ResultType::ERROR
+                        ResultType::Error
                     }
                 };
                 let duration = start.elapsed();
@@ -71,9 +71,9 @@ async fn start_concurrent_connections_round(
         sum += duration.as_millis();
 
         match result {
-            ResultType::GRANTED => granted += 1,
-            ResultType::REJECTED => rejected += 1,
-            ResultType::ERROR => errors += 1,
+            ResultType::Granted => granted += 1,
+            ResultType::Rejected => rejected += 1,
+            ResultType::Error => errors += 1,
         }
     }
 

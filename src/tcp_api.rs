@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
-    sync::oneshot::Receiver,
     task,
 };
 
@@ -20,11 +19,15 @@ pub async fn start_server(context: Context) {
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
-        process_socket_request(socket, &context).await;
+
+        let socket_context = context.clone();
+        task::spawn(async move {
+            process_socket_request(socket, socket_context).await;
+        });
     }
 }
 
-async fn process_socket_request(mut socket: TcpStream, context: &Context) {
+async fn process_socket_request(mut socket: TcpStream, context: Context) {
     let mut packet = [0u8; 24];
     socket.read_exact(&mut packet).await.unwrap();
     let (instance_id, application_id, duration) = unpack_tcp_packet(packet);
@@ -33,12 +36,7 @@ async fn process_socket_request(mut socket: TcpStream, context: &Context) {
         .request_leasing(instance_id.clone(), application_id.clone(), duration)
         .await;
 
-    task::spawn(async move { process_socket_response(socket, rx).await });
-}
-
-async fn process_socket_response(mut socket: TcpStream, rx: Receiver<LeasingResponse>) {
     let response = rx.await;
-
     match response {
         Err(e) => {
             eprintln!("Error while waiting for database result {}", e);
