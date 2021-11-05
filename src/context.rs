@@ -1,11 +1,43 @@
 use std::{fmt::Debug, sync::Arc};
 
-use tokio::sync::{oneshot, Notify, RwLock};
+use tokio::sync::{oneshot, Mutex, Notify, RwLock};
 
 use crate::{database::Database, LldResult};
 
-// pub type LldContext = ContextNaive;
-pub type LldContext = ContextBatching;
+#[derive(Debug, Clone)]
+pub enum LldContext {
+    Naive(ContextNaive),
+    Batching(ContextBatching),
+}
+
+impl LldContext {
+    pub async fn run(&self) -> LldResult<()> {
+        match self {
+            LldContext::Naive(context) => context.run().await,
+            LldContext::Batching(context) => context.run().await,
+        }
+    }
+
+    pub async fn request_leasing(
+        &self,
+        instance_id: String,
+        application_id: String,
+        duration: u64,
+    ) -> LldResult<LeasingResponse> {
+        match self {
+            LldContext::Naive(context) => {
+                context
+                    .request_leasing(instance_id, application_id, duration)
+                    .await
+            }
+            LldContext::Batching(context) => {
+                context
+                    .request_leasing(instance_id, application_id, duration)
+                    .await
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum LeasingResponse {
@@ -22,12 +54,16 @@ struct ContextQueueEntry {
 }
 
 #[derive(Debug, Clone)]
-pub struct ContextNaive {}
+pub struct ContextNaive {
+    lock: Arc<Mutex<()>>,
+}
 
 impl ContextNaive {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self {}
+        Self {
+            lock: Arc::new(Mutex::new(())),
+        }
     }
 
     pub async fn run(&self) -> LldResult<()> {
@@ -46,8 +82,11 @@ impl ContextNaive {
             application_id, duration
         );
 
-        let db = Database::open()?;
-        let lease = db.request_leasing(&instance_id, &application_id, duration)?;
+        let lease = {
+            let _lock = self.lock.lock().await;
+            let db = Database::open()?;
+            db.request_leasing(&instance_id, &application_id, duration)?
+        };
 
         let response = match lease {
             Some(validity) => LeasingResponse::Granted { validity },

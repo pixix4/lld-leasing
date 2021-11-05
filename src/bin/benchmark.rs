@@ -98,10 +98,17 @@ struct Opts {
     server_path: String,
 }
 
-async fn start_step(tcp: bool, count: usize, repeat: usize, server_path: &str) -> LldResult<()> {
+async fn start_step(
+    tcp: bool,
+    batching: bool,
+    count: usize,
+    repeat: usize,
+    server_path: &str,
+) -> LldResult<()> {
     for _ in 0..repeat {
         let mut child = Command::new(server_path)
             .env("RUST_LOG", "ERROR")
+            .env("USE_NAIVE", format!("{}", !batching))
             .stdout(Stdio::null())
             .spawn()?;
         sleep(Duration::from_millis(1000)).await;
@@ -115,7 +122,11 @@ async fn start_step(tcp: bool, count: usize, repeat: usize, server_path: &str) -
             Ok((avg, granted, rejected, errors)) => {
                 println!(
                     "{},{},{},{},{},{}",
-                    if tcp { "tcp" } else { "http" },
+                    format!(
+                        "{}-{}",
+                        if tcp { "tcp" } else { "http" },
+                        if batching { "batching" } else { "naive" }
+                    ),
                     count,
                     avg,
                     granted,
@@ -144,9 +155,12 @@ async fn main() -> LldResult<()> {
     println!("type,count,average,granted,rejected,errors");
 
     for _ in 1..opts.max {
-        for tcp in [false, true] {
-            start_step(tcp, count, opts.repeat, &opts.server_path).await?;
+        for batching in [false, true] {
+            for tcp in [false, true] {
+                start_step(tcp, batching, count, opts.repeat, &opts.server_path).await?;
+            }
         }
+
         count *= 2;
     }
 

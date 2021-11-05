@@ -16,4 +16,8 @@ lazy_static::lazy_static! {
         .unwrap_or(3040);
     pub static ref TCP_REQUEST_URI: String = std::env::var("TCP_REQUEST_URI")
         .unwrap_or_else(|_| "127.0.0.1:3040".to_owned());
+
+    pub static ref USE_NAIVE: bool = std::env::var("USE_NAIVE")
+        .map(|s| s.as_str() == "true")
+        .unwrap_or_else(|_| false);
 }
