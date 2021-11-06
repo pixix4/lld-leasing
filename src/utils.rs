@@ -12,15 +12,15 @@ use crate::{
 };
 
 pub async fn http_request_leasing(
-    instance_id: &str,
     application_id: &str,
+    instance_id: &str,
     duration: u64,
 ) -> LldResult<Option<u64>> {
     let client = Client::new();
 
     let request = RestLeasingRequest {
-        instance_id: instance_id.to_owned(),
         application_id: application_id.to_owned(),
+        instance_id: instance_id.to_owned(),
         duration,
     };
 
@@ -45,13 +45,13 @@ pub async fn http_request_leasing(
 }
 
 pub async fn tcp_request_leasing(
-    instance_id: u64,
     application_id: u64,
+    instance_id: u64,
     duration: u64,
 ) -> LldResult<Option<u64>> {
     let mut stream = TcpStream::connect(env::TCP_REQUEST_URI.as_str()).await?;
 
-    let packet = pack_tcp_packet(instance_id, application_id, duration);
+    let packet = pack_tcp_packet(application_id, instance_id, duration);
     tokio::io::AsyncWriteExt::write_all(&mut stream, &packet).await?;
 
     let result = tokio::io::AsyncReadExt::read_u8(&mut stream).await?;
@@ -85,21 +85,27 @@ pub fn get_current_time() -> u64 {
 }
 
 pub fn unpack_tcp_packet(packet: [u8; 24]) -> (String, String, u64) {
-    let instance_id = base64::encode(&packet[0..8]);
     let application_id = base64::encode(&packet[8..16]);
+    let instance_id = base64::encode(&packet[0..8]);
     let mut duration_slice: &[u8] = &packet[16..24];
-    let duration = duration_slice.read_u64::<BigEndian>().unwrap();
+    let duration = duration_slice.read_u64::<BigEndian>().unwrap_or(0);
 
-    (instance_id, application_id, duration)
+    (application_id, instance_id, duration)
 }
 
-pub fn pack_tcp_packet(instance_id: u64, application_id: u64, duration: u64) -> [u8; 24] {
+pub fn pack_tcp_packet(application_id: u64, instance_id: u64, duration: u64) -> [u8; 24] {
     let mut packet = [0u8; 24];
     let mut buffer = packet.as_mut();
 
-    buffer.write_u64::<BigEndian>(instance_id).unwrap();
-    buffer.write_u64::<BigEndian>(application_id).unwrap();
-    buffer.write_u64::<BigEndian>(duration).unwrap();
+    buffer
+        .write_u64::<BigEndian>(application_id)
+        .expect("Cannot write `application_id` to a tcp packet!");
+    buffer
+        .write_u64::<BigEndian>(instance_id)
+        .expect("Cannot write `instance_id` to a tcp packet!");
+    buffer
+        .write_u64::<BigEndian>(duration)
+        .expect("Cannot write `duration` to a tcp packet!");
 
     packet
 }

@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate log;
 
-use lld_leasing::context::{ContextBatching, ContextNaive, LldContext};
+use lld_leasing::context::Context;
+use lld_leasing::context_batching::ContextBatching;
+use lld_leasing::context_naive::ContextNaive;
 use lld_leasing::database::Database;
 use lld_leasing::{env, http_api, tcp_api, LldResult};
 
@@ -12,16 +14,14 @@ async fn main() -> LldResult<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    {
-        info!("Initialze database");
-        let db = Database::open()?;
-        db.init()?;
-    }
+    info!("Initialze database");
+    let db = Database::open()?;
+    db.init()?;
 
     let context = if *env::USE_NAIVE {
-        LldContext::Naive(ContextNaive::new())
+        Context::Naive(ContextNaive::new(db)?)
     } else {
-        LldContext::Batching(ContextBatching::new())
+        Context::Batching(ContextBatching::new(db)?)
     };
 
     info!("Start http endpoint");

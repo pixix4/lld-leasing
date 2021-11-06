@@ -7,12 +7,12 @@ use tokio::{
 };
 
 use crate::{
-    context::{LeasingResponse, LldContext},
+    context::{Context, LeasingResponse},
     env,
     utils::unpack_tcp_packet,
 };
 
-pub async fn start_server(context: LldContext) {
+pub async fn start_server(context: Context) {
     let listener = TcpListener::bind(SocketAddr::new("0.0.0.0".parse().unwrap(), *env::TCP_PORT))
         .await
         .unwrap();
@@ -27,15 +27,15 @@ pub async fn start_server(context: LldContext) {
     }
 }
 
-async fn process_socket_request(mut socket: TcpStream, addr: SocketAddr, context: LldContext) {
+async fn process_socket_request(mut socket: TcpStream, addr: SocketAddr, context: Context) {
     let start = Instant::now();
 
     let mut packet = [0u8; 24];
     socket.read_exact(&mut packet).await.unwrap();
-    let (instance_id, application_id, duration) = unpack_tcp_packet(packet);
+    let (application_id, instance_id, duration) = unpack_tcp_packet(packet);
 
     let response = context
-        .request_leasing(instance_id.clone(), application_id.clone(), duration)
+        .request_leasing(application_id.clone(), instance_id.clone(), duration)
         .await;
 
     let duration = start.elapsed();

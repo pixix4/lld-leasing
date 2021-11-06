@@ -42,6 +42,12 @@ impl From<std::io::Error> for LldError {
     }
 }
 
+impl From<std::fmt::Error> for LldError {
+    fn from(error: std::fmt::Error) -> Self {
+        LldError::WrappedError("fmt error", format!("{}", error))
+    }
+}
+
 impl From<tokio::task::JoinError> for LldError {
     fn from(error: tokio::task::JoinError) -> Self {
         LldError::WrappedError("tokio join error", format!("{}", error))

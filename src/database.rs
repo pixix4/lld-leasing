@@ -1,6 +1,23 @@
-use sqlite::{Connection, State};
+use std::collections::HashMap;
 
-use crate::{env, utils::get_current_time, LldResult};
+use sqlite::Connection;
+use std::fmt::Write;
+
+use crate::{cache::CacheMap, env, LldResult};
+
+#[derive(Debug)]
+pub enum DatabaseTask {
+    Insert {
+        application_id: String,
+        instance_id: String,
+        validity: u64,
+    },
+    Update {
+        application_id: String,
+        instance_id: String,
+        validity: u64,
+    },
+}
 
 pub struct Database {
     connection: Connection,
@@ -22,59 +39,115 @@ impl Database {
                 validity INTEGER NOT NULL
 );"#,
         )?;
+
+        self.build_cache()?;
+
         Ok(())
     }
 
-    pub fn request_leasing(
+    pub fn build_cache(&self) -> LldResult<CacheMap> {
+        let mut cache: CacheMap = HashMap::new();
+
+        self.connection.iterate(
+            "SELECT application_id, instance_id, validity FROM leasings;",
+            |pairs| {
+                let application_id = pairs[0].1.unwrap_or("");
+                let instance_id = pairs[1].1.unwrap_or("");
+                let validity = pairs[2].1.unwrap_or("").parse::<u64>().unwrap_or(0);
+                cache.insert(
+                    application_id.to_owned(),
+                    (instance_id.to_owned(), validity),
+                );
+                true
+            },
+        )?;
+
+        Ok(cache)
+    }
+
+    pub fn query_leasing(&self, application_id: &str) -> LldResult<Option<(String, u64)>> {
+        let mut result: Option<(String, u64)> = None;
+        self.connection.iterate(
+            format!(
+                "SELECT instance_id, validity FROM leasings WHERE application_id='{}';",
+                application_id
+            ),
+            |pairs| {
+                let instance_id = pairs[0].1.unwrap_or("");
+                let validity = pairs[1].1.unwrap_or("").parse::<u64>().unwrap_or(0);
+                result = Some((instance_id.to_owned(), validity));
+                false
+            },
+        )?;
+
+        Ok(result)
+    }
+
+    fn get_update_leasing_sql(application_id: &str, instance_id: &str, validity: u64) -> String {
+        format!(
+            "UPDATE leasings SET validity = {}, instance_id = '{}' WHERE application_id = '{}';",
+            validity, instance_id, application_id
+        )
+    }
+
+    pub fn update_leasing(
         &self,
-        instance_id: &str,
         application_id: &str,
-        duration: u64,
-    ) -> LldResult<Option<u64>> {
-        let now = get_current_time();
+        instance_id: &str,
+        validity: u64,
+    ) -> LldResult<bool> {
+        self.connection.execute(Database::get_update_leasing_sql(
+            application_id,
+            instance_id,
+            validity,
+        ))?;
 
-        let mut statement = self
-            .connection
-            .prepare("SELECT instance_id, validity FROM leasings WHERE application_id = ?")?;
+        Ok(true)
+    }
 
-        statement.bind(1, application_id)?;
+    fn get_insert_leasing_sql(application_id: &str, instance_id: &str, validity: u64) -> String {
+        format!(
+            "INSERT INTO leasings (application_id, instance_id, validity) VALUES ('{}', '{}', {});",
+            application_id, instance_id, validity
+        )
+    }
 
-        let mut found: Option<(String, i64)> = None;
-        while let State::Row = statement.next()? {
-            found = Some((statement.read::<String>(0)?, statement.read::<i64>(1)?));
+    pub fn insert_leasing(
+        &self,
+        application_id: &str,
+        instance_id: &str,
+        validity: u64,
+    ) -> LldResult<bool> {
+        self.connection.execute(Database::get_insert_leasing_sql(
+            application_id,
+            instance_id,
+            validity,
+        ))?;
+
+        Ok(true)
+    }
+
+    pub fn execute_tasks(&self, tasks: &[DatabaseTask]) -> LldResult<bool> {
+        let mut transaction = String::new();
+
+        for task in tasks {
+            let statement = match task {
+                DatabaseTask::Insert {
+                    application_id,
+                    instance_id,
+                    validity,
+                } => Database::get_insert_leasing_sql(application_id, instance_id, *validity),
+                DatabaseTask::Update {
+                    application_id,
+                    instance_id,
+                    validity,
+                } => Database::get_update_leasing_sql(application_id, instance_id, *validity),
+            };
+
+            writeln!(&mut transaction, "{}", statement)?;
         }
 
-        Ok(match found {
-            Some((leased_instance_id, validity)) => {
-                let validity = validity as u64;
-                if validity > now && leased_instance_id != instance_id {
-                    None
-                } else {
-                    let mut statement = self
-                        .connection
-                        .prepare("UPDATE leasings SET validity = ?, instance_id = ? WHERE application_id = ?")?;
-
-                    statement.bind(1, (now + duration) as i64)?;
-                    statement.bind(2, instance_id)?;
-                    statement.bind(3, application_id)?;
-
-                    statement.next()?;
-
-                    Some(now + duration)
-                }
-            }
-            None => {
-                let mut statement = self.connection.prepare(
-                    "INSERT INTO leasings (instance_id, application_id, validity) VALUES (?, ?, ?)",
-                )?;
-
-                statement.bind(1, instance_id)?;
-                statement.bind(2, application_id)?;
-                statement.bind(3, (now + duration) as i64)?;
-
-                statement.next()?;
-                Some(now + duration)
-            }
-        })
+        self.connection.execute(transaction)?;
+        Ok(true)
     }
 }

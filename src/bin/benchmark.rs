@@ -24,15 +24,15 @@ enum ResultType {
 
 async fn request(tcp: bool) -> LldResult<bool> {
     let result = if tcp {
-        let instance_id = generate_random_u64();
         let application_id = generate_random_u8() as u64;
+        let instance_id = generate_random_u64();
         let duration = 5000;
-        tcp_request_leasing(instance_id, application_id, duration).await?
+        tcp_request_leasing(application_id, instance_id, duration).await?
     } else {
-        let instance_id = generate_random_id::<64>();
         let application_id = generate_random_id::<1>();
+        let instance_id = generate_random_id::<64>();
         let duration = 5000;
-        http_request_leasing(&instance_id, &application_id, duration).await?
+        http_request_leasing(&application_id, &instance_id, duration).await?
     };
     Ok(result.is_some())
 }
@@ -84,20 +84,6 @@ async fn start_concurrent_connections_round(
     Ok((avg, granted, rejected, errors))
 }
 
-#[derive(Parser)]
-#[clap(
-    version = "1.0",
-    author = "Lars Westermann <lars.westermann@tu-dresden.de>"
-)]
-struct Opts {
-    #[clap(long, default_value = "4")]
-    repeat: usize,
-    #[clap(long, default_value = "8")]
-    max: usize,
-    #[clap(default_value = "lld_leasing")]
-    server_path: String,
-}
-
 async fn start_step(
     tcp: bool,
     batching: bool,
@@ -141,6 +127,20 @@ async fn start_step(
     }
 
     Ok(())
+}
+
+#[derive(Parser)]
+#[clap(
+    version = "1.0",
+    author = "Lars Westermann <lars.westermann@tu-dresden.de>"
+)]
+struct Opts {
+    #[clap(long, default_value = "4")]
+    repeat: usize,
+    #[clap(long, default_value = "8")]
+    max: usize,
+    #[clap(default_value = "lld_leasing")]
+    server_path: String,
 }
 
 #[tokio::main]

@@ -45,11 +45,11 @@ async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
 }
 
 async fn run_single_leasing_client(
-    instance_id: &str,
     application_id: &str,
+    instance_id: &str,
     duration: u64,
 ) -> LldResult<u64> {
-    match http_request_leasing(instance_id, application_id, duration).await? {
+    match http_request_leasing(application_id, instance_id, duration).await? {
         Some(validity) => Ok(validity),
         None => {
             error!("Could not get leasing, aborting!");
@@ -59,8 +59,8 @@ async fn run_single_leasing_client(
 }
 
 async fn run_leasing_client_task(
-    instance_id: &str,
     application_id: &str,
+    instance_id: &str,
     duration: u64,
     threshold: u64,
     tx: mpsc::Sender<u64>,
@@ -71,7 +71,7 @@ async fn run_leasing_client_task(
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match http_request_leasing(instance_id, application_id, duration).await? {
+        match http_request_leasing(application_id, instance_id, duration).await? {
             Some(validity) => {
                 let now = get_current_time();
 
@@ -105,7 +105,7 @@ async fn main() {
     info!("");
 
     let init_validity;
-    match run_single_leasing_client(&instance_id, &opts.id, opts.duration).await {
+    match run_single_leasing_client(&opts.id, &instance_id, opts.duration).await {
         Ok(validity) => {
             init_validity = validity;
         }
@@ -133,8 +133,8 @@ async fn main() {
         exit(1)
     }
     match run_leasing_client_task(
-        &instance_id,
         &opts.id,
+        &instance_id,
         opts.duration,
         opts.threshold,
         tx,
