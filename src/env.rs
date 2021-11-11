@@ -17,7 +17,11 @@ lazy_static::lazy_static! {
     pub static ref TCP_REQUEST_URI: String = std::env::var("TCP_REQUEST_URI")
         .unwrap_or_else(|_| "127.0.0.1:3040".to_owned());
 
-    pub static ref USE_NAIVE: bool = std::env::var("USE_NAIVE")
+    pub static ref DISABLE_BATCHING: bool = std::env::var("DISABLE_BATCHING")
+        .map(|s| s.as_str() == "true")
+        .unwrap_or_else(|_| false);
+
+    pub static ref DISABLE_CACHE: bool = std::env::var("DISABLE_CACHE")
         .map(|s| s.as_str() == "true")
         .unwrap_or_else(|_| false);
 }

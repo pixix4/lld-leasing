@@ -19,6 +19,23 @@ pub enum DatabaseTask {
     },
 }
 
+impl DatabaseTask {
+    pub fn get_validity(&self) -> u64 {
+        match self {
+            DatabaseTask::Insert {
+                application_id: _,
+                instance_id: _,
+                validity,
+            } => *validity,
+            DatabaseTask::Update {
+                application_id: _,
+                instance_id: _,
+                validity,
+            } => *validity,
+        }
+    }
+}
+
 pub struct Database {
     connection: Connection,
 }
@@ -34,8 +51,8 @@ impl Database {
             .execute(r#"DROP TABLE IF EXISTS leasings;"#)?;
         self.connection.execute(
             r#"CREATE TABLE leasings (
-                instance_id TEXT NOT NULL,
                 application_id TEXT NOT NULL PRIMARY KEY,
+                instance_id TEXT NOT NULL,
                 validity INTEGER NOT NULL
 );"#,
         )?;
@@ -76,7 +93,7 @@ impl Database {
                 let instance_id = pairs[0].1.unwrap_or("");
                 let validity = pairs[1].1.unwrap_or("").parse::<u64>().unwrap_or(0);
                 result = Some((instance_id.to_owned(), validity));
-                false
+                true
             },
         )?;
 

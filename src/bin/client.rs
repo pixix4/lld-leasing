@@ -71,16 +71,20 @@ async fn run_leasing_client_task(
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match http_request_leasing(application_id, instance_id, duration).await? {
-            Some(validity) => {
+        match http_request_leasing(application_id, instance_id, duration).await {
+            Ok(Some(validity)) => {
                 let now = get_current_time();
 
                 tx.send(validity).await?;
                 let runtime = (validity - now) * threshold / 100;
                 sleep(Duration::from_millis(runtime as u64)).await;
             }
-            None => {
+            Ok(None) => {
                 error!("Could not get leasing, aborting!");
+                exit(1);
+            }
+            Err(_) => {
+                error!("Could not connect to leasing server, aborting!");
                 exit(1);
             }
         }

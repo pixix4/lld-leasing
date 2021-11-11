@@ -12,13 +12,17 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct ContextNaive {
     lock: Arc<Mutex<()>>,
-    cache: ContextCache,
+    cache: Option<ContextCache>,
 }
 
 impl ContextNaive {
     #[allow(clippy::new_without_default)]
-    pub fn new(db: Database) -> LldResult<Self> {
-        let cache = ContextCache::new(&db)?;
+    pub fn new(db: Database, disable_cache: bool) -> LldResult<Self> {
+        let cache = if disable_cache {
+            None
+        } else {
+            Some(ContextCache::new(&db)?)
+        };
         Ok(Self {
             lock: Arc::new(Mutex::new(())),
             cache,
@@ -37,10 +41,20 @@ impl ContextNaive {
         duration: u64,
         now: u64,
     ) -> LldResult<LeasingResponse> {
-        let cache_result = self
-            .cache
-            .request_leasing(application_id, instance_id, duration, now)
-            .await?;
+        let _lock = self.lock.lock().await;
+        let db = Database::open()?;
+
+        let cache_result = match &self.cache {
+            Some(cache) => {
+                cache
+                    .request_leasing(application_id, instance_id, duration, now)
+                    .await?
+            }
+            None => {
+                let result = db.query_leasing(&application_id)?;
+                ContextCache::to_cache_result(application_id, instance_id, duration, now, result)
+            }
+        };
 
         let leasing_result = match cache_result {
             CacheResult::Rejected => LeasingResponse::Rejected,
@@ -49,10 +63,7 @@ impl ContextNaive {
                 instance_id,
                 validity,
             } => {
-                let _lock = self.lock.lock().await;
-                let db = Database::open()?;
                 db.insert_leasing(&application_id, &instance_id, validity)?;
-
                 LeasingResponse::Granted { validity }
             }
             CacheResult::GrantedUpdate {
@@ -60,10 +71,7 @@ impl ContextNaive {
                 instance_id,
                 validity,
             } => {
-                let _lock = self.lock.lock().await;
-                let db = Database::open()?;
                 db.update_leasing(&application_id, &instance_id, validity)?;
-
                 LeasingResponse::Granted { validity }
             }
         };

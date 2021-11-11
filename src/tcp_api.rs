@@ -31,7 +31,10 @@ async fn process_socket_request(mut socket: TcpStream, addr: SocketAddr, context
     let start = Instant::now();
 
     let mut packet = [0u8; 24];
-    socket.read_exact(&mut packet).await.unwrap();
+    if let Err(e) = socket.read_exact(&mut packet).await {
+        error!("Cannot recieve tcp request: {:?}", e);
+        return;
+    }
     let (application_id, instance_id, duration) = unpack_tcp_packet(packet);
 
     let response = context
@@ -41,16 +44,16 @@ async fn process_socket_request(mut socket: TcpStream, addr: SocketAddr, context
     let duration = start.elapsed();
     info!("{} {:?} {}ms", addr, response, duration.as_millis());
 
-    match response {
-        Ok(LeasingResponse::Granted { .. }) => {
-            socket.write_u8(48).await.unwrap();
-        }
-        Ok(LeasingResponse::Rejected) => {
-            socket.write_u8(49).await.unwrap();
-        }
+    let send_result = match response {
+        Ok(LeasingResponse::Granted { .. }) => socket.write_u8(48).await,
+        Ok(LeasingResponse::Rejected) => socket.write_u8(49).await,
         Err(e) => {
             error!("Error while waiting for database result {:?}", e);
-            socket.write_u8(50).await.unwrap();
+            socket.write_u8(50).await
         }
     };
+
+    if let Err(e) = send_result {
+        error!("Cannot send tcp response: {:?}", e);
+    }
 }

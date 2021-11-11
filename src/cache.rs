@@ -35,30 +35,18 @@ impl ContextCache {
         })
     }
 
-    pub async fn request_leasing(
-        &self,
+    pub fn to_cache_result(
         application_id: String,
         instance_id: String,
         duration: u64,
         now: u64,
-    ) -> LldResult<CacheResult> {
-        let found = {
-            let cache = self.cache.read().await;
-            cache.get(&application_id).cloned()
-        };
-
-        Ok(match found {
+        result: Option<(String, u64)>,
+    ) -> CacheResult {
+        match result {
             Some((leased_instance_id, validity)) => {
                 if validity > now && leased_instance_id != instance_id {
                     CacheResult::Rejected
                 } else {
-                    {
-                        let mut cache = self.cache.write().await;
-                        cache.insert(
-                            application_id.to_owned(),
-                            (instance_id.to_owned(), now + duration),
-                        );
-                    }
                     CacheResult::GrantedUpdate {
                         application_id,
                         instance_id,
@@ -66,20 +54,73 @@ impl ContextCache {
                     }
                 }
             }
-            None => {
-                {
-                    let mut cache = self.cache.write().await;
+            None => CacheResult::GrantedInsert {
+                application_id,
+                instance_id,
+                validity: now + duration,
+            },
+        }
+    }
+
+    pub async fn request_leasing(
+        &self,
+        application_id: String,
+        instance_id: String,
+        duration: u64,
+        now: u64,
+    ) -> LldResult<CacheResult> {
+        let result = {
+            let cache = self.cache.read().await;
+            cache.get(&application_id).cloned()
+        };
+
+        let cache_result =
+            ContextCache::to_cache_result(application_id, instance_id, duration, now, result);
+
+        let cache_result = match cache_result {
+            CacheResult::Rejected => CacheResult::Rejected,
+            CacheResult::GrantedInsert {
+                application_id,
+                instance_id,
+                validity,
+            } => {
+                let mut cache = self.cache.write().await;
+                if cache.get(&application_id).is_some() {
+                    CacheResult::Rejected
+                } else {
                     cache.insert(
                         application_id.to_owned(),
                         (instance_id.to_owned(), now + duration),
                     );
-                }
-                CacheResult::GrantedInsert {
-                    application_id,
-                    instance_id,
-                    validity: now + duration,
+                    CacheResult::GrantedInsert {
+                        application_id,
+                        instance_id,
+                        validity,
+                    }
                 }
             }
-        })
+            CacheResult::GrantedUpdate {
+                application_id,
+                instance_id,
+                validity,
+            } => {
+                let mut cache = self.cache.write().await;
+                if cache.get(&application_id).unwrap().0.as_str() != instance_id {
+                    CacheResult::Rejected
+                } else {
+                    cache.insert(
+                        application_id.to_owned(),
+                        (instance_id.to_owned(), now + duration),
+                    );
+                    CacheResult::GrantedUpdate {
+                        application_id,
+                        instance_id,
+                        validity,
+                    }
+                }
+            }
+        };
+
+        Ok(cache_result)
     }
 }

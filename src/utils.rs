@@ -85,8 +85,8 @@ pub fn get_current_time() -> u64 {
 }
 
 pub fn unpack_tcp_packet(packet: [u8; 24]) -> (String, String, u64) {
-    let application_id = base64::encode(&packet[8..16]);
-    let instance_id = base64::encode(&packet[0..8]);
+    let application_id = base64::encode(&packet[0..8]);
+    let instance_id = base64::encode(&packet[8..16]);
     let mut duration_slice: &[u8] = &packet[16..24];
     let duration = duration_slice.read_u64::<BigEndian>().unwrap_or(0);
 

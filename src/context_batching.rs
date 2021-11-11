@@ -10,22 +10,35 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct QueueEntry {
-    task: DatabaseTask,
-    tx: oneshot::Sender<bool>,
+pub enum QueueEntry {
+    Cached {
+        task: DatabaseTask,
+        tx: oneshot::Sender<LeasingResponse>,
+    },
+    Default {
+        application_id: String,
+        instance_id: String,
+        duration: u64,
+        now: u64,
+        tx: oneshot::Sender<LeasingResponse>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct ContextBatching {
     queue: Arc<RwLock<Vec<QueueEntry>>>,
     notify: Arc<Notify>,
-    cache: ContextCache,
+    cache: Option<ContextCache>,
 }
 
 impl ContextBatching {
     #[allow(clippy::new_without_default)]
-    pub fn new(db: Database) -> LldResult<Self> {
-        let cache = ContextCache::new(&db)?;
+    pub fn new(db: Database, disable_cache: bool) -> LldResult<Self> {
+        let cache = if disable_cache {
+            None
+        } else {
+            Some(ContextCache::new(&db)?)
+        };
         Ok(Self {
             queue: Arc::new(RwLock::new(Vec::new())),
             notify: Arc::new(Notify::new()),
@@ -50,18 +63,74 @@ impl ContextBatching {
                     let db = Database::open()?;
 
                     let mut tasks = Vec::<DatabaseTask>::with_capacity(entries.len());
-                    let mut callbacks = Vec::<oneshot::Sender<bool>>::with_capacity(entries.len());
+                    let mut callbacks =
+                        Vec::<(u64, oneshot::Sender<LeasingResponse>)>::with_capacity(
+                            entries.len(),
+                        );
 
                     for entry in entries {
-                        tasks.push(entry.task);
-                        callbacks.push(entry.tx);
+                        match entry {
+                            QueueEntry::Cached { task, tx } => {
+                                let validity = task.get_validity();
+                                tasks.push(task);
+                                callbacks.push((validity, tx));
+                            }
+                            QueueEntry::Default {
+                                application_id,
+                                instance_id,
+                                duration,
+                                now,
+                                tx,
+                            } => {
+                                let result = db.query_leasing(&application_id)?;
+                                let cache_result = ContextCache::to_cache_result(
+                                    application_id,
+                                    instance_id,
+                                    duration,
+                                    now,
+                                    result,
+                                );
+
+                                let leasing_result = match cache_result {
+                                    CacheResult::Rejected => LeasingResponse::Rejected,
+                                    CacheResult::GrantedInsert {
+                                        application_id,
+                                        instance_id,
+                                        validity,
+                                    } => {
+                                        db.insert_leasing(&application_id, &instance_id, validity)?;
+                                        LeasingResponse::Granted { validity }
+                                    }
+                                    CacheResult::GrantedUpdate {
+                                        application_id,
+                                        instance_id,
+                                        validity,
+                                    } => {
+                                        db.update_leasing(&application_id, &instance_id, validity)?;
+                                        LeasingResponse::Granted { validity }
+                                    }
+                                };
+
+                                if let Err(e) = tx.send(leasing_result) {
+                                    error!("Cannot send leasing result to client! ({:?})", e)
+                                }
+                            }
+                        }
                     }
 
                     let result = db.execute_tasks(&tasks)?;
 
-                    for tx in callbacks {
-                        if let Err(e) = tx.send(result) {
-                            error!("Cannot send leasing result to client! ({:?})", e)
+                    if result {
+                        for (validity, tx) in callbacks {
+                            if let Err(e) = tx.send(LeasingResponse::Granted { validity }) {
+                                error!("Cannot send leasing result to client! ({:?})", e)
+                            }
+                        }
+                    } else {
+                        for (_, tx) in callbacks {
+                            if let Err(e) = tx.send(LeasingResponse::Rejected) {
+                                error!("Cannot send leasing result to client! ({:?})", e)
+                            }
                         }
                     }
                 }
@@ -77,47 +146,52 @@ impl ContextBatching {
         duration: u64,
         now: u64,
     ) -> LldResult<LeasingResponse> {
-        let cache_result = self
-            .cache
-            .request_leasing(application_id, instance_id, duration, now)
-            .await?;
+        let (tx, rx) = oneshot::channel();
+        let entry = match &self.cache {
+            Some(cache) => {
+                let cache_result = cache
+                    .request_leasing(application_id, instance_id, duration, now)
+                    .await?;
 
-        let (task, validity) = match cache_result {
-            CacheResult::Rejected => return Ok(LeasingResponse::Rejected),
-            CacheResult::GrantedInsert {
+                QueueEntry::Cached {
+                    task: match cache_result {
+                        CacheResult::Rejected => return Ok(LeasingResponse::Rejected),
+                        CacheResult::GrantedInsert {
+                            application_id,
+                            instance_id,
+                            validity,
+                        } => DatabaseTask::Insert {
+                            application_id,
+                            instance_id,
+                            validity,
+                        },
+                        CacheResult::GrantedUpdate {
+                            application_id,
+                            instance_id,
+                            validity,
+                        } => DatabaseTask::Update {
+                            application_id,
+                            instance_id,
+                            validity,
+                        },
+                    },
+                    tx,
+                }
+            }
+            None => QueueEntry::Default {
                 application_id,
                 instance_id,
-                validity,
-            } => (
-                DatabaseTask::Insert {
-                    application_id,
-                    instance_id,
-                    validity,
-                },
-                validity,
-            ),
-            CacheResult::GrantedUpdate {
-                application_id,
-                instance_id,
-                validity,
-            } => (
-                DatabaseTask::Update {
-                    application_id,
-                    instance_id,
-                    validity,
-                },
-                validity,
-            ),
+                duration,
+                now,
+                tx,
+            },
         };
 
-        let (tx, rx) = oneshot::channel();
         {
             let mut queue = self.queue.write().await;
-            queue.push(QueueEntry { task, tx });
+            queue.push(entry);
         }
         self.notify.notify_one();
-
-        rx.await?;
-        Ok(LeasingResponse::Granted { validity })
+        Ok(rx.await?)
     }
 }

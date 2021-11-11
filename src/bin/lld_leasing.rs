@@ -18,10 +18,10 @@ async fn main() -> LldResult<()> {
     let db = Database::open()?;
     db.init()?;
 
-    let context = if *env::USE_NAIVE {
-        Context::Naive(ContextNaive::new(db)?)
+    let context = if *env::DISABLE_BATCHING {
+        Context::Naive(ContextNaive::new(db, *env::DISABLE_CACHE)?)
     } else {
-        Context::Batching(ContextBatching::new(db)?)
+        Context::Batching(ContextBatching::new(db, *env::DISABLE_CACHE)?)
     };
 
     info!("Start http endpoint");
