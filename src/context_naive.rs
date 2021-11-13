@@ -41,19 +41,26 @@ impl ContextNaive {
         duration: u64,
         now: u64,
     ) -> LldResult<LeasingResponse> {
+        let cache_result = match &self.cache {
+            Some(cache) => Some(
+                cache
+                    .request_leasing(application_id.clone(), instance_id.clone(), duration, now)
+                    .await?,
+            ),
+            None => None,
+        };
+
+        if let Some(CacheResult::Rejected) = cache_result {
+            return Ok(LeasingResponse::Rejected);
+        }
+
         let _lock = self.lock.lock().await;
         let db = Database::open()?;
-
-        let cache_result = match &self.cache {
-            Some(cache) => {
-                cache
-                    .request_leasing(application_id, instance_id, duration, now)
-                    .await?
-            }
-            None => {
-                let result = db.query_leasing(&application_id)?;
-                ContextCache::to_cache_result(application_id, instance_id, duration, now, result)
-            }
+        let cache_result = if let Some(cache_result) = cache_result {
+            cache_result
+        } else {
+            let result = db.query_leasing(&application_id)?;
+            ContextCache::to_cache_result(application_id, instance_id, duration, now, result)
         };
 
         let leasing_result = match cache_result {

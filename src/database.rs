@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use sqlite::Connection;
 use std::fmt::Write;
 
-use crate::{cache::CacheMap, env, LldResult};
+use crate::{cache::CacheMap, env, sqlite::Sqlite, LldResult};
 
 #[derive(Debug)]
 pub enum DatabaseTask {
@@ -37,12 +36,12 @@ impl DatabaseTask {
 }
 
 pub struct Database {
-    connection: Connection,
+    connection: Sqlite,
 }
 
 impl Database {
     pub fn open() -> LldResult<Self> {
-        let connection = sqlite::open(env::DATABASE_URI.as_str())?;
+        let connection = Sqlite::open(env::DATABASE_URI.as_str())?;
         Ok(Self { connection })
     }
 
@@ -113,11 +112,9 @@ impl Database {
         instance_id: &str,
         validity: u64,
     ) -> LldResult<bool> {
-        self.connection.execute(Database::get_update_leasing_sql(
-            application_id,
-            instance_id,
-            validity,
-        ))?;
+        self.connection.execute(
+            Database::get_update_leasing_sql(application_id, instance_id, validity).as_str(),
+        )?;
 
         Ok(true)
     }
@@ -135,11 +132,9 @@ impl Database {
         instance_id: &str,
         validity: u64,
     ) -> LldResult<bool> {
-        self.connection.execute(Database::get_insert_leasing_sql(
-            application_id,
-            instance_id,
-            validity,
-        ))?;
+        self.connection.execute(
+            Database::get_insert_leasing_sql(application_id, instance_id, validity).as_str(),
+        )?;
 
         Ok(true)
     }
@@ -164,7 +159,7 @@ impl Database {
             writeln!(&mut transaction, "{}", statement)?;
         }
 
-        self.connection.execute(transaction)?;
+        self.connection.execute(transaction.as_str())?;
         Ok(true)
     }
 }

@@ -20,19 +20,37 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-async fn request(application_id: u64, instance_id: u64) -> LldResult<LoopResult> {
+async fn request(application_id: u64, instance_id: u64) -> LoopResult {
     let duration = 5000;
     let instant = Instant::now();
-    let result = tcp_request_leasing(application_id, instance_id, duration).await?;
+    let result = timeout(
+        Duration::from_secs(1),
+        tcp_request_leasing(application_id, instance_id, duration),
+    )
+    .await;
     let time = instant.elapsed().as_millis();
 
-    // eprintln!("# {}: {}: {:?}", application_id, instance_id, result);
+    let result = match result {
+        Ok(result) => result,
+        Err(e) => {
+            error!("{:?}", e);
+            return LoopResult::new_timeout(time);
+        }
+    };
 
-    Ok(if result.is_some() {
+    let result = match result {
+        Ok(result) => result,
+        Err(e) => {
+            error!("{:?}", e);
+            return LoopResult::new_error(time);
+        }
+    };
+
+    if result.is_some() {
         LoopResult::new_granted(time)
     } else {
         LoopResult::new_rejected(time)
-    })
+    }
 }
 
 struct LoopResult {
@@ -40,6 +58,10 @@ struct LoopResult {
     granted_count: i32,
     rejected_time: u128,
     rejected_count: i32,
+    timeout_time: u128,
+    timeout_count: i32,
+    error_time: u128,
+    error_count: i32,
 }
 
 impl LoopResult {
@@ -49,6 +71,10 @@ impl LoopResult {
             granted_count: 0,
             rejected_time: 0,
             rejected_count: 0,
+            timeout_time: 0,
+            timeout_count: 0,
+            error_time: 0,
+            error_count: 0,
         }
     }
 
@@ -58,6 +84,10 @@ impl LoopResult {
             granted_count: 1,
             rejected_time: 0,
             rejected_count: 0,
+            timeout_time: 0,
+            timeout_count: 0,
+            error_time: 0,
+            error_count: 0,
         }
     }
 
@@ -67,6 +97,36 @@ impl LoopResult {
             granted_count: 0,
             rejected_time: time,
             rejected_count: 1,
+            timeout_time: 0,
+            timeout_count: 0,
+            error_time: 0,
+            error_count: 0,
+        }
+    }
+
+    pub fn new_timeout(time: u128) -> Self {
+        Self {
+            granted_time: 0,
+            granted_count: 0,
+            rejected_time: 0,
+            rejected_count: 0,
+            timeout_time: time,
+            timeout_count: 1,
+            error_time: 0,
+            error_count: 0,
+        }
+    }
+
+    pub fn new_error(time: u128) -> Self {
+        Self {
+            granted_time: 0,
+            granted_count: 0,
+            rejected_time: 0,
+            rejected_count: 0,
+            timeout_time: 0,
+            timeout_count: 0,
+            error_time: time,
+            error_count: 1,
         }
     }
 }
@@ -80,6 +140,10 @@ impl Add<LoopResult> for LoopResult {
             granted_count: self.granted_count + other.granted_count,
             rejected_time: self.rejected_time + other.rejected_time,
             rejected_count: self.rejected_count + other.rejected_count,
+            timeout_time: self.timeout_time + other.timeout_time,
+            timeout_count: self.timeout_count + other.timeout_count,
+            error_time: self.error_time + other.error_time,
+            error_count: self.error_count + other.error_count,
         }
     }
 }
@@ -89,27 +153,16 @@ async fn loop_requests(
     instance_id: u64,
     stop_at: u64,
 ) -> LldResult<LoopResult> {
-    // let instance_id = generate_random_u64();
     let mut result = LoopResult::new();
 
     while get_current_time() < stop_at {
-        match timeout(Duration::from_secs(1), request(application_id, instance_id)).await {
-            Ok(Ok(r)) => {
-                result = result + r;
-            }
-            Ok(Err(e)) => {
-                error!("E: {:?}", e);
-            }
-            Err(_) => {
-                error!("Timeout for {}: {}", application_id, instance_id);
-            }
-        };
+        result = result + request(application_id, instance_id).await;
     }
 
     Ok(result)
 }
 
-async fn start_concurrent_connections_round(count: usize, stop_at: u64) -> LldResult<(f64, f64)> {
+async fn start_concurrent_connections_round(count: usize, stop_at: u64) -> LldResult<LoopResult> {
     let mut h1: Vec<JoinHandle<LoopResult>> = (0..count as u64)
         .map(|application_id| {
             spawn(async move {
@@ -136,10 +189,7 @@ async fn start_concurrent_connections_round(count: usize, stop_at: u64) -> LldRe
         result = result + r;
     }
 
-    Ok((
-        result.granted_time as f64 / result.granted_count as f64,
-        result.rejected_time as f64 / result.rejected_count as f64,
-    ))
+    Ok(result)
 }
 
 async fn start_step(
@@ -174,10 +224,10 @@ async fn start_step(
             fs::remove_file(db)?;
         }
         let mut child = Command::new(server_path)
-            //.env("RUST_LOG", "ERROR")
+            .env("RUST_LOG", "ERROR")
             .env("DISABLE_BATCHING", format!("{}", disable_batching))
             .env("DISABLE_CACHE", format!("{}", disable_cache))
-            //.stdout(Stdio::null())
+            .stdout(Stdio::null())
             .spawn()?;
         sleep(Duration::from_millis(1000)).await;
 
@@ -188,9 +238,14 @@ async fn start_step(
         sleep(Duration::from_millis(200)).await;
 
         match result {
-            Ok((granted_avg, rejected_avg)) => {
+            Ok(result) => {
+                let granted_avg = result.granted_time as f64 / result.granted_count as f64;
+                let rejected_avg = result.rejected_time as f64 / result.rejected_count as f64;
+                let timeout_avg = result.timeout_time as f64 / result.timeout_count as f64;
+                let error_avg = result.error_time as f64 / result.error_count as f64;
+
                 println!(
-                    "{},{},{},{}",
+                    "{},{},{},{},{},{},{},{},{},{}",
                     name,
                     count * 2,
                     if granted_avg.is_nan() {
@@ -203,6 +258,16 @@ async fn start_step(
                     } else {
                         rejected_avg
                     },
+                    if timeout_avg.is_nan() {
+                        0.0
+                    } else {
+                        timeout_avg
+                    },
+                    if error_avg.is_nan() { 0.0 } else { error_avg },
+                    result.granted_count,
+                    result.rejected_count,
+                    result.timeout_count,
+                    result.error_count,
                 );
             }
             Err(e) => {
@@ -224,7 +289,7 @@ struct Opts {
     repeat: usize,
     #[clap(long, default_value = "3")]
     max: usize,
-    #[clap(long, default_value = "2000")]
+    #[clap(long, default_value = "3000")]
     duration: usize,
     #[clap(default_value = "lld_leasing")]
     server_path: String,
@@ -239,7 +304,7 @@ async fn main() -> LldResult<()> {
 
     let mut count = 1;
 
-    println!("type,count,granted_avg,rejected_avg");
+    println!("type,count,granted_avg,rejected_avg,timeout_avg,error_avg,granted_count,rejected_count,timeout_count,error_count");
 
     for _ in 1..opts.max {
         for disable_batching in [false, true] {
