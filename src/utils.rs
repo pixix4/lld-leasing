@@ -8,7 +8,7 @@ use tokio::net::TcpStream;
 use crate::{
     env,
     http_api::{RestLeasingRequest, RestLeasingResponse},
-    LldResult,
+    LldError, LldResult,
 };
 
 pub async fn http_request_leasing(
@@ -49,12 +49,27 @@ pub async fn tcp_request_leasing(
     instance_id: u64,
     duration: u64,
 ) -> LldResult<Option<u64>> {
-    let mut stream = TcpStream::connect(env::TCP_REQUEST_URI.as_str()).await?;
+    let mut stream = TcpStream::connect(env::TCP_REQUEST_URI.as_str())
+        .await
+        .map_err(|error| {
+            LldError::WrappedError("tcp_request_leasing - connect error", format!("{}", error))
+        })?;
 
     let packet = pack_tcp_packet(application_id, instance_id, duration);
-    tokio::io::AsyncWriteExt::write_all(&mut stream, &packet).await?;
+    tokio::io::AsyncWriteExt::write_all(&mut stream, &packet)
+        .await
+        .map_err(|error| {
+            LldError::WrappedError(
+                "tcp_request_leasing - write_all error",
+                format!("{}", error),
+            )
+        })?;
 
-    let result = tokio::io::AsyncReadExt::read_u8(&mut stream).await?;
+    let result = tokio::io::AsyncReadExt::read_u8(&mut stream)
+        .await
+        .map_err(|error| {
+            LldError::WrappedError("tcp_request_leasing - read_u8 error", format!("{}", error))
+        })?;
 
     if result == 48 {
         let now = get_current_time();

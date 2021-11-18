@@ -1,8 +1,9 @@
+use core::fmt;
 use std::collections::HashMap;
 
 use std::fmt::Write;
 
-use crate::{cache::CacheMap, env, sqlite::Sqlite, LldResult};
+use crate::{cache::CacheMap, LldResult};
 
 #[derive(Debug)]
 pub enum DatabaseTask {
@@ -35,13 +36,149 @@ impl DatabaseTask {
     }
 }
 
+#[cfg(not(feature = "dqlite"))]
+mod database_connection {
+
+    use crate::sqlite::Connection as SqliteConnection;
+    use crate::{env, LldResult};
+
+    use super::DatabaseValue;
+
+    pub struct Connection {
+        connection: SqliteConnection,
+    }
+
+    impl Connection {
+        pub fn open() -> LldResult<Self> {
+            let connection = SqliteConnection::open(env::DATABASE_URI.as_str())?;
+            Ok(Self { connection })
+        }
+
+        pub fn execute(&self, statement: &str) -> LldResult<()> {
+            self.connection.execute(statement)?;
+            Ok(())
+        }
+
+        pub fn iterate<T: AsRef<str>, F>(&self, statement: T, mut callback: F) -> LldResult<()>
+        where
+            F: FnMut(&[(String, DatabaseValue)]) -> bool,
+        {
+            self.connection.iterate(statement, |fields| {
+                let vec: Vec<(String, DatabaseValue)> = fields
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            key.to_owned().to_owned(),
+                            match value {
+                                Some(value) => DatabaseValue::Text(value.to_owned().to_owned()),
+                                None => DatabaseValue::Null(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                callback(&vec)
+            })?;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "dqlite")]
+mod database_connection {
+
+    use crate::dqlite::Connection as DqliteConnection;
+    use crate::dqlite::DqliteValueWrapper;
+    use crate::LldResult;
+
+    use super::DatabaseValue;
+
+    pub struct Connection {
+        connection: DqliteConnection,
+    }
+
+    impl Connection {
+        pub fn open() -> LldResult<Self> {
+            let connection = DqliteConnection::open("leasings")?;
+            Ok(Self { connection })
+        }
+
+        pub fn execute(&self, statement: &str) -> LldResult<()> {
+            self.connection.execute(statement)?;
+            Ok(())
+        }
+
+        pub fn iterate<T: AsRef<str>, F>(&self, statement: T, mut callback: F) -> LldResult<()>
+        where
+            F: FnMut(&[(String, DatabaseValue)]) -> bool,
+        {
+            self.connection.iterate(statement, |fields| {
+                let vec: Vec<(String, DatabaseValue)> = fields
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            key.to_owned(),
+                            match value {
+                                DqliteValueWrapper::Integer(x) => DatabaseValue::Integer(*x),
+                                DqliteValueWrapper::Float(x) => DatabaseValue::Float(*x),
+                                DqliteValueWrapper::Null() => DatabaseValue::Null(),
+                                DqliteValueWrapper::Text(x) => DatabaseValue::Text(x.clone()),
+                                DqliteValueWrapper::Boolean(x) => DatabaseValue::Boolean(*x),
+                                DqliteValueWrapper::Unknown() => DatabaseValue::Unknown(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                return callback(&vec);
+            })?;
+            Ok(())
+        }
+    }
+}
+
+pub enum DatabaseValue {
+    Integer(i64),
+    Float(f64),
+    Null(),
+    Text(String),
+    Boolean(bool),
+    Unknown(),
+}
+
+impl DatabaseValue {
+    pub fn to_u64(&self) -> u64 {
+        match self {
+            Self::Integer(x) => *x as u64,
+            Self::Float(x) => *x as u64,
+            Self::Null() => 0,
+            Self::Text(x) => x.parse::<u64>().unwrap_or(0),
+            Self::Boolean(x) => *x as u64,
+            Self::Unknown() => 0,
+        }
+    }
+}
+
+impl fmt::Display for DatabaseValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Integer(x) => write!(f, "{}", x),
+            Self::Float(x) => write!(f, "{}", x),
+            Self::Null() => write!(f, ""),
+            Self::Text(x) => write!(f, "{}", x),
+            Self::Boolean(x) => write!(f, "{}", x),
+            Self::Unknown() => write!(f, ""),
+        }
+    }
+}
+
 pub struct Database {
-    connection: Sqlite,
+    connection: database_connection::Connection,
 }
 
 impl Database {
     pub fn open() -> LldResult<Self> {
-        let connection = Sqlite::open(env::DATABASE_URI.as_str())?;
+        let connection = database_connection::Connection::open()?;
         Ok(Self { connection })
     }
 
@@ -67,13 +204,10 @@ impl Database {
         self.connection.iterate(
             "SELECT application_id, instance_id, validity FROM leasings;",
             |pairs| {
-                let application_id = pairs[0].1.unwrap_or("");
-                let instance_id = pairs[1].1.unwrap_or("");
-                let validity = pairs[2].1.unwrap_or("").parse::<u64>().unwrap_or(0);
-                cache.insert(
-                    application_id.to_owned(),
-                    (instance_id.to_owned(), validity),
-                );
+                let application_id = pairs[0].1.to_string();
+                let instance_id = pairs[1].1.to_string();
+                let validity = pairs[2].1.to_u64();
+                cache.insert(application_id, (instance_id, validity));
                 true
             },
         )?;
@@ -89,9 +223,9 @@ impl Database {
                 application_id
             ),
             |pairs| {
-                let instance_id = pairs[0].1.unwrap_or("");
-                let validity = pairs[1].1.unwrap_or("").parse::<u64>().unwrap_or(0);
-                result = Some((instance_id.to_owned(), validity));
+                let instance_id = pairs[0].1.to_string();
+                let validity = pairs[1].1.to_u64();
+                result = Some((instance_id, validity));
                 true
             },
         )?;

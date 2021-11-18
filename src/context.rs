@@ -5,7 +5,7 @@ use crate::{
     LldResult,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Context {
     Naive(ContextNaive),
     Batching(ContextBatching),

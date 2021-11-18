@@ -57,11 +57,10 @@ impl ContextBatching {
     }
 
     pub async fn run(&self) -> LldResult<()> {
+        let db = Database::open()?;
         loop {
             match self.check_tasks().await {
                 Some(entries) => {
-                    let db = Database::open()?;
-
                     let mut tasks = Vec::<DatabaseTask>::with_capacity(entries.len());
                     let mut callbacks =
                         Vec::<(u64, oneshot::Sender<LeasingResponse>)>::with_capacity(

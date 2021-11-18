@@ -6,7 +6,7 @@ use std::{
     fs,
     ops::Add,
     path::Path,
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -37,6 +37,7 @@ async fn request(application_id: u64, instance_id: u64) -> LoopResult {
             return LoopResult::new_timeout(time);
         }
     };
+    sleep(Duration::from_millis(500)).await;
 
     let result = match result {
         Ok(result) => result,
@@ -223,6 +224,9 @@ async fn start_step(
         if db.exists() {
             fs::remove_file(db)?;
         }
+
+        let dbs = dqlite_start().await?;
+
         let mut child = Command::new(server_path)
             .env("RUST_LOG", "ERROR")
             .env("DISABLE_BATCHING", format!("{}", disable_batching))
@@ -236,6 +240,8 @@ async fn start_step(
 
         child.kill()?;
         sleep(Duration::from_millis(200)).await;
+
+        dqlite_stop(dbs).await?;
 
         match result {
             Ok(result) => {
@@ -323,6 +329,49 @@ async fn main() -> LldResult<()> {
 
         count *= 2;
     }
+
+    Ok(())
+}
+
+async fn dqlite_start() -> LldResult<(Child, Child, Child)> {
+    let db1 = Command::new("/root/server")
+        .env("SERVER_ADDRESS", "127.0.0.1")
+        .env("NODE_ID", "1")
+        .env("PORT", "24000")
+        .stdout(Stdio::null())
+        .spawn()?;
+
+    let db2 = Command::new("/root/server")
+        .env("SERVER_ADDRESS", "127.0.0.1")
+        .env("NODE_ID", "2")
+        .env("PORT", "25000")
+        .stdout(Stdio::null())
+        .spawn()?;
+
+    let db3 = Command::new("/root/server")
+        .env("SERVER_ADDRESS", "127.0.0.1")
+        .env("NODE_ID", "3")
+        .env("PORT", "26000")
+        .stdout(Stdio::null())
+        .spawn()?;
+
+    sleep(Duration::from_millis(1000)).await;
+
+    Ok((db1, db2, db3))
+}
+
+async fn dqlite_stop(mut childs: (Child, Child, Child)) -> LldResult<()> {
+    childs.0.kill()?;
+    childs.1.kill()?;
+    childs.2.kill()?;
+    sleep(Duration::from_millis(200)).await;
+
+    Command::new("bash")
+        .arg("-c")
+        .arg("rm -rf /tmp/dqlite-rs*")
+        .stdout(Stdio::null())
+        .spawn()?
+        .wait()?;
 
     Ok(())
 }

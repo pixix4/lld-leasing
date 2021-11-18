@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
@@ -9,9 +9,9 @@ use crate::{
     LldResult,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ContextNaive {
-    lock: Arc<Mutex<()>>,
+    db: Arc<Mutex<Database>>,
     cache: Option<ContextCache>,
 }
 
@@ -24,7 +24,7 @@ impl ContextNaive {
             Some(ContextCache::new(&db)?)
         };
         Ok(Self {
-            lock: Arc::new(Mutex::new(())),
+            db: Arc::new(Mutex::new(Database::open()?)),
             cache,
         })
     }
@@ -54,8 +54,7 @@ impl ContextNaive {
             return Ok(LeasingResponse::Rejected);
         }
 
-        let _lock = self.lock.lock().await;
-        let db = Database::open()?;
+        let db = self.db.lock().await;
         let cache_result = if let Some(cache_result) = cache_result {
             cache_result
         } else {

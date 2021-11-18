@@ -1,1 +1,4 @@
 target/
+logs/
+images/
+dqlite-client-master/

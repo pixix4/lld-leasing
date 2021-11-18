@@ -1,6 +1,10 @@
 #[derive(Debug, Clone)]
 pub enum LldError {
     WrappedError(&'static str, String),
+    DatabaseError {
+        code: Option<isize>,
+        message: Option<String>,
+    },
 }
 
 /// Helper for `ServiceError` result
@@ -27,12 +31,6 @@ impl From<std::string::FromUtf8Error> for LldError {
 impl From<serde_json::Error> for LldError {
     fn from(error: serde_json::Error) -> Self {
         LldError::WrappedError("serde json error", format!("{}", error))
-    }
-}
-
-impl From<sqlite::Error> for LldError {
-    fn from(error: sqlite::Error) -> Self {
-        LldError::WrappedError("sqlite error", format!("{}", error))
     }
 }
 

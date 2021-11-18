@@ -1,7 +1,6 @@
 /target
 /logs
-/logs copy
 *.log
 *.db
-dqlite-client-master/
 .DS_Store
+dqlite-client-master/
