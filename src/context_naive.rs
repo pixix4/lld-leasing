@@ -24,7 +24,7 @@ impl ContextNaive {
             Some(ContextCache::new(&db)?)
         };
         Ok(Self {
-            db: Arc::new(Mutex::new(Database::open()?)),
+            db: Arc::new(Mutex::new(db)),
             cache,
         })
     }

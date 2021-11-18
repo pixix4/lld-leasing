@@ -83,4 +83,5 @@ extern "C" {
 
     pub fn get_n_servers() -> c_int;
 
+    // pub fn get_ip(index: c_int) -> *const c_char;
 }

@@ -176,6 +176,12 @@ pub struct Database {
     connection: database_connection::Connection,
 }
 
+impl fmt::Debug for Database {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Database").finish()
+    }
+}
+
 impl Database {
     pub fn open() -> LldResult<Self> {
         let connection = database_connection::Connection::open()?;

@@ -1,5 +1,7 @@
 mod ffi;
 
+use std::ffi::CString;
+
 use crate::{
     dqlite::ffi::{Dqlite, DqliteRows},
     LldError, LldResult,
@@ -36,37 +38,40 @@ unsafe impl Send for Connection {}
 
 impl Connection {
     pub fn open(database_name: &str) -> LldResult<Connection> {
-        let ips = std::fs::read_to_string("ips.csv")?
+        let ipc = std::fs::read_to_string("ips.csv")
+            .unwrap()
             .split("\n")
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
             .map(|s| s.to_owned())
-            .collect::<Vec<String>>();
+            .map(|s| CString::new(s).unwrap())
+            .collect::<Vec<CString>>();
 
         unsafe {
             ffi::set_n_clients(3);
             ffi::init_ips(str_to_cstr!("ips.csv").as_ptr());
             println!("clients: {}", ffi::get_n_servers());
 
-            for (i, ip) in ips.iter().enumerate() {
-                println!("Connecting to socket {}", ip);
+            for i in 0..ipc.len() {
+                // let ip = ::std::ffi::CStr::from_ptr(ffi::get_ip(i as i32));
+                let ip = &ipc[i];
+                println!("Connecting to socket {:?} {:?}", ip, ip.as_ptr());
 
                 let mut fd = 0;
-                let res =
-                    ffi::connect_socket(&mut fd as *mut c_int, str_to_cstr!(ip.as_str()).as_ptr());
-                println!("Connected to socket {}: {}", ip, res);
+                let res = ffi::connect_socket(&mut fd as *mut c_int, ip.as_ptr());
+                println!("Connected to socket {:?}: {}", ip, res);
                 if res != 0 {
                     raise!("Cannot connect socket!");
                 }
 
-                println!("Init client {}", ip);
+                println!("Init client {:?}", ip);
                 let client = &mut ffi::clients[i];
                 let res = ffi::clientInit(client as *mut Dqlite, fd as c_int);
-                println!("Init client {} finished: {}", ip, res);
+                println!("Init client {:?} finished: {}", ip, res);
 
-                println!("Handshake to client {}", ip);
+                println!("Handshake to client {:?}", ip);
                 let res = ffi::clientSendHandshake(client as *mut Dqlite);
-                println!("Handshake to client {} finished {}", ip, res);
+                println!("Handshake to client {:?} finished {}", ip, res);
                 if res != 0 {
                     raise!("Handshake failed!");
                 }
@@ -78,18 +83,12 @@ impl Connection {
                     i += 1;
                     continue;
                 }
-                println!(
-                    "Adding server {} {:?} {:?}",
-                    ips[i],
-                    str_to_cstr!(ips[i].as_str()),
-                    str_to_cstr!(ips[i].as_str()).as_ptr(),
-                );
-                let res = ffi::addServer(
-                    client as *mut Dqlite,
-                    i as u32,
-                    str_to_cstr!(ips[i].as_str()).as_ptr(),
-                );
-                println!("Added server {}: {}", ips[i], res);
+
+                // let ip = ::std::ffi::CStr::from_ptr(ffi::get_ip(i as i32));
+                let ip = &ipc[i];
+                println!("Adding server {:?} {:?}", ip, ip.as_ptr());
+                let res = ffi::addServer(client as *mut Dqlite, i as u32, ip.as_ptr());
+                println!("Added server {:?}: {}", ip, res);
 
                 i += 1;
             }

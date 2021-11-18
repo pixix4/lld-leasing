@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use tokio::sync::{oneshot, Notify, RwLock};
+use tokio::sync::{oneshot, Mutex, Notify, RwLock};
 
 use crate::{
     cache::{CacheResult, ContextCache},
@@ -29,6 +29,7 @@ pub struct ContextBatching {
     queue: Arc<RwLock<Vec<QueueEntry>>>,
     notify: Arc<Notify>,
     cache: Option<ContextCache>,
+    db: Arc<Mutex<Database>>,
 }
 
 impl ContextBatching {
@@ -43,6 +44,7 @@ impl ContextBatching {
             queue: Arc::new(RwLock::new(Vec::new())),
             notify: Arc::new(Notify::new()),
             cache,
+            db: Arc::new(Mutex::new(db)),
         })
     }
 
@@ -57,7 +59,7 @@ impl ContextBatching {
     }
 
     pub async fn run(&self) -> LldResult<()> {
-        let db = Database::open()?;
+        let db = self.db.lock().await;
         loop {
             match self.check_tasks().await {
                 Some(entries) => {
