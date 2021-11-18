@@ -25,21 +25,41 @@ A benchmark round creates `N` clients that continuously send leasing requests fo
 ### Use sqlite file as database
 
 Average response time of granted leases relative to the number of concurrent clients:
+
 ![Average response time of granted leases relative to the number of concurrent clients](images/bench_0/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
 
 Average response time of rejected leases relative to the number of concurrent clients:
+
 ![Average response time of rejected leases relative to the number of concurrent clients](images/bench_0/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
 
 Number of timeouts relative to the number of concurrent clients:
+
 ![Number of timeouts relative to the number of concurrent clients](images/bench_0/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
 
 ### Simulate dqlite network delay with a 10ms sleep before each sqlite request
 
 Average response time of granted leases relative to the number of concurrent clients:
+
 ![Average response time of granted leases relative to the number of concurrent clients](images/bench_1/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
 
 Average response time of rejected leases relative to the number of concurrent clients:
+
 ![Average response time of rejected leases relative to the number of concurrent clients](images/bench_1/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
 
 Number of timeouts relative to the number of concurrent clients:
+
 ![Number of timeouts relative to the number of concurrent clients](images/bench_1/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
+
+### Use local dqlite cluster with 3 servers as database
+
+Average response time of granted leases relative to the number of concurrent clients:
+
+![Average response time of granted leases relative to the number of concurrent clients](images/bench_2/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+
+Average response time of rejected leases relative to the number of concurrent clients:
+
+![Average response time of rejected leases relative to the number of concurrent clients](images/bench_2/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
+
+Number of timeouts relative to the number of concurrent clients:
+
+![Number of timeouts relative to the number of concurrent clients](images/bench_2/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")

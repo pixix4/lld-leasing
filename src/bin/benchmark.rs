@@ -37,7 +37,6 @@ async fn request(application_id: u64, instance_id: u64) -> LoopResult {
             return LoopResult::new_timeout(time);
         }
     };
-    sleep(Duration::from_millis(500)).await;
 
     let result = match result {
         Ok(result) => result,

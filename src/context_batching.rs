@@ -28,8 +28,8 @@ pub enum QueueEntry {
 pub struct ContextBatching {
     queue: Arc<RwLock<Vec<QueueEntry>>>,
     notify: Arc<Notify>,
-    cache: Option<ContextCache>,
     db: Arc<Mutex<Database>>,
+    cache: Option<ContextCache>,
 }
 
 impl ContextBatching {
@@ -43,8 +43,8 @@ impl ContextBatching {
         Ok(Self {
             queue: Arc::new(RwLock::new(Vec::new())),
             notify: Arc::new(Notify::new()),
-            cache,
             db: Arc::new(Mutex::new(db)),
+            cache,
         })
     }
 
@@ -119,18 +119,20 @@ impl ContextBatching {
                         }
                     }
 
-                    let result = db.execute_tasks(&tasks)?;
+                    if !tasks.is_empty() {
+                        let result = db.execute_tasks(&tasks)?;
 
-                    if result {
-                        for (validity, tx) in callbacks {
-                            if let Err(e) = tx.send(LeasingResponse::Granted { validity }) {
-                                error!("Cannot send leasing result to client! ({:?})", e)
+                        if result {
+                            for (validity, tx) in callbacks {
+                                if let Err(e) = tx.send(LeasingResponse::Granted { validity }) {
+                                    error!("Cannot send leasing result to client! ({:?})", e)
+                                }
                             }
-                        }
-                    } else {
-                        for (_, tx) in callbacks {
-                            if let Err(e) = tx.send(LeasingResponse::Rejected) {
-                                error!("Cannot send leasing result to client! ({:?})", e)
+                        } else {
+                            for (_, tx) in callbacks {
+                                if let Err(e) = tx.send(LeasingResponse::Rejected) {
+                                    error!("Cannot send leasing result to client! ({:?})", e)
+                                }
                             }
                         }
                     }
