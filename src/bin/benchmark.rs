@@ -296,7 +296,7 @@ struct Opts {
     max: usize,
     #[clap(long, default_value = "3000")]
     duration: usize,
-    #[clap(default_value = "lld_leasing")]
+    #[clap(default_value = "server")]
     server_path: String,
 }
 

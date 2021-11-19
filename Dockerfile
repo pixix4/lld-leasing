@@ -60,7 +60,7 @@ RUN rm -rf ./target
 
 COPY src/ src/
 COPY build.rs ./
-RUN cargo install --features dqlite --bin lld_leasing --path . --locked
+RUN cargo install --features dqlite --bin server --path . --locked
 RUN cargo install --features dqlite --bin client --path . --locked
 RUN cargo install --features dqlite --bin benchmark --path . --locked
 

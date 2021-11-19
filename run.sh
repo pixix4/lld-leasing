@@ -4,7 +4,7 @@
 
 sleep 1
 
-./target/debug/lld_leasing
+./target/debug/server
 
 sleep 1
 
