@@ -33,7 +33,7 @@ async fn request(application_id: u64, instance_id: u64) -> LoopResult {
     let result = match result {
         Ok(result) => result,
         Err(e) => {
-            error!("{:?}", e);
+            eprintln!("{:?}", e);
             return LoopResult::new_timeout(time);
         }
     };
@@ -41,7 +41,7 @@ async fn request(application_id: u64, instance_id: u64) -> LoopResult {
     let result = match result {
         Ok(result) => result,
         Err(e) => {
-            error!("{:?}", e);
+            eprintln!("{:?}", e);
             return LoopResult::new_error(time);
         }
     };
@@ -312,18 +312,16 @@ async fn main() -> LldResult<()> {
     println!("type,count,granted_avg,rejected_avg,timeout_avg,error_avg,granted_count,rejected_count,timeout_count,error_count");
 
     for _ in 1..opts.max {
-        for disable_batching in [false, true] {
-            for disable_cache in [false, true] {
-                start_step(
-                    disable_batching,
-                    disable_cache,
-                    count,
-                    opts.repeat,
-                    opts.duration,
-                    &opts.server_path,
-                )
-                .await?;
-            }
+        for (disable_batching, disable_cache) in [(false, false), (true, false), (true, true)] {
+            start_step(
+                disable_batching,
+                disable_cache,
+                count,
+                opts.repeat,
+                opts.duration,
+                &opts.server_path,
+            )
+            .await?;
         }
 
         count *= 2;

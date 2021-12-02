@@ -59,6 +59,7 @@ pub struct DqliteValue {
     pub union_value: DqliteValueUnion,
 }
 
+#[link(name = "dqlite")]
 extern "C" {
 
     pub static mut clients: [Dqlite; 3];

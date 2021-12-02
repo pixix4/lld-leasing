@@ -1,8 +1,9 @@
-FROM rust:1.56-bullseye
+FROM rust:1.56-alpine
 
 # install dependencies
-RUN apt update \
-    && apt install -y git bash vim make clang cmake autoconf sqlite3 libsqlite3-0 libsqlite3-dev libuv1-dev gcc automake libtool libraft-dev curl
+RUN apk update \
+    && apk add git bash vim make cmake autoconf sqlite-dev libuv-dev gcc automake libtool musl-dev curl cmake libuv \
+    && apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing raft-dev
 RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite
 WORKDIR dqlite
 
@@ -58,6 +59,7 @@ COPY Cargo.toml ./
 RUN cargo install --path . --locked
 RUN rm -rf ./target
 
+COPY .cargo/ .cargo/
 COPY src/ src/
 COPY build.rs ./
 RUN cargo install --features dqlite --bin server --path . --locked

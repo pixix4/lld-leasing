@@ -7,6 +7,7 @@ pub enum Sqlite3 {}
 pub type Sqlite3ExecCallback =
     extern "C" fn(*mut c_void, c_int, *mut *mut c_char, *mut *mut c_char) -> c_int;
 
+#[link(name = "sqlite3")]
 extern "C" {
 
     pub fn sqlite3_close(p: *mut Sqlite3) -> c_int;
