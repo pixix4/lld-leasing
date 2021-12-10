@@ -7,18 +7,11 @@ pub enum LldError {
     },
 }
 
-/// Helper for `ServiceError` result
 pub type LldResult<T> = Result<T, LldError>;
 
-impl From<hyper::Error> for LldError {
-    fn from(error: hyper::Error) -> Self {
-        LldError::WrappedError("hyper error", format!("{}", error))
-    }
-}
-
-impl From<hyper::http::Error> for LldError {
-    fn from(error: hyper::http::Error) -> Self {
-        LldError::WrappedError("hyper http error", format!("{}", error))
+impl From<reqwest::Error> for LldError {
+    fn from(error: reqwest::Error) -> Self {
+        LldError::WrappedError("Reqwest http error", format!("{}", error))
     }
 }
 

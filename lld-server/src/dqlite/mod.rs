@@ -2,12 +2,10 @@ mod ffi;
 
 use std::ffi::CString;
 
-use crate::{
-    dqlite::ffi::{Dqlite, DqliteRows},
-    LldError, LldResult,
-};
+use crate::dqlite::ffi::{Dqlite, DqliteRows};
 
 use libc::c_int;
+use lld_common::{LldError, LldResult};
 
 macro_rules! raise(
     ($message:expr) => (

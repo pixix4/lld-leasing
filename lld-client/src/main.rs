@@ -1,32 +1,17 @@
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate clap;
 
-use std::{
-    io::{self, Write},
-    process::exit,
-    time::Duration,
-};
+use std::io::{self, Write};
+use std::{process::exit, time::Duration};
 
-use clap::Parser;
+use clap::{App, Arg};
 use tokio::{spawn, sync::mpsc, time::sleep};
 
-use lld_leasing::{
-    utils::{generate_random_id, get_current_time, http_request_leasing},
-    LldResult,
+use lld_common::{
+    generate_random_id, get_current_time, http_request_leasing, Environment, LldResult,
 };
-
-#[derive(Parser)]
-#[clap(
-    version = "1.0",
-    author = "Lars Westermann <lars.westermann@tu-dresden.de>"
-)]
-struct Opts {
-    id: String,
-    #[clap(default_value = "5000")]
-    duration: u64,
-    #[clap(default_value = "50")]
-    threshold: u64,
-}
 
 async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
     let mut validity = rx.recv().await.unwrap_or_else(get_current_time);
@@ -45,11 +30,12 @@ async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
 }
 
 async fn run_single_leasing_client(
+    environment: &Environment,
     application_id: &str,
     instance_id: &str,
     duration: u64,
 ) -> LldResult<u64> {
-    match http_request_leasing(application_id, instance_id, duration).await? {
+    match http_request_leasing(environment, application_id, instance_id, duration).await? {
         Some(validity) => Ok(validity),
         None => {
             error!("Could not get leasing, aborting!");
@@ -59,6 +45,7 @@ async fn run_single_leasing_client(
 }
 
 async fn run_leasing_client_task(
+    environment: &Environment,
     application_id: &str,
     instance_id: &str,
     duration: u64,
@@ -71,7 +58,7 @@ async fn run_leasing_client_task(
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match http_request_leasing(application_id, instance_id, duration).await {
+        match http_request_leasing(environment, application_id, instance_id, duration).await {
             Ok(Some(validity)) => {
                 let now = get_current_time();
 
@@ -96,20 +83,57 @@ async fn main() {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    let opts: Opts = Opts::parse();
+    let m = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!("\n"))
+        .arg(
+            Arg::with_name("http_uri")
+                .long("http_uri")
+                .env("LLD_HTTP_URI"),
+        )
+        .arg(Arg::with_name("tcp_uri").long("tcp_uri").env("LLD_TCP_URI"))
+        .arg(Arg::with_name("id").env("LLD_APPLICATION_ID"))
+        .arg(
+            Arg::with_name("duration")
+                .short("d")
+                .long("duration")
+                .env("LLD_DURATION"),
+        )
+        .arg(
+            Arg::with_name("threshold")
+                .short("t")
+                .long("threshold")
+                .env("LLD_THRESHOLD"),
+        )
+        .get_matches();
+
+    let http_uri = m
+        .value_of("http_uri")
+        .unwrap_or("http://localhost:3030/request");
+    let tcp_uri = m.value_of("tcp_uri").unwrap_or("127.0.0.1:3040");
+
+    let environment = Environment {
+        http_request_uri: http_uri.to_owned(),
+        tcp_request_uri: tcp_uri.to_owned(),
+    };
+
+    let application_id = m.value_of("id").unwrap_or_default();
+    let duration = value_t!(m, "duration", u64).unwrap_or(5000);
+    let threshold = value_t!(m, "threshold", u64).unwrap_or(50);
+
     let instance_id = generate_random_id::<64>();
 
     let (tx, rx) = mpsc::channel::<u64>(8);
 
     info!("Configuration:");
-    info!("    application_id: '{}'", &opts.id);
+    info!("    application_id: '{}'", &application_id);
     info!("    instance_id: '{}'", &instance_id);
-    info!("    duration: '{}'", opts.duration);
-    info!("    threshold: '{}'", opts.threshold);
+    info!("    duration: '{}'", duration);
+    info!("    threshold: '{}'", threshold);
     info!("");
 
     let init_validity;
-    match run_single_leasing_client(&opts.id, &instance_id, opts.duration).await {
+    match run_single_leasing_client(&environment, application_id, &instance_id, duration).await {
         Ok(validity) => {
             init_validity = validity;
         }
@@ -137,10 +161,11 @@ async fn main() {
         exit(1)
     }
     match run_leasing_client_task(
-        &opts.id,
+        &environment,
+        application_id,
         &instance_id,
-        opts.duration,
-        opts.threshold,
+        duration,
+        threshold,
         tx,
         init_validity,
     )

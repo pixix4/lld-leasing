@@ -1,41 +1,68 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use hyper::{Body, Client, Method, Request};
 use rand::{thread_rng, RngCore};
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 
-use crate::{
-    env,
-    http_api::{RestLeasingRequest, RestLeasingResponse},
-    LldError, LldResult,
-};
+use crate::{LldError, LldResult};
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RestLeasingRequest {
+    pub application_id: String,
+    pub instance_id: String,
+    pub duration: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "lowercase")]
+pub enum RestLeasingResponse {
+    Granted { validity: u64 },
+    Rejected,
+    Error,
+}
+
+#[derive(Debug, Clone)]
+pub struct Environment {
+    pub http_request_uri: String,
+    pub tcp_request_uri: String,
+}
+
+arg_enum! {
+    #[derive(Debug, Clone, Copy)]
+    pub enum LldMode {
+        Naive,
+        NaiveCaching,
+        Batching,
+    }
+}
+
+impl Default for LldMode {
+    fn default() -> Self {
+        Self::Batching
+    }
+}
 
 pub async fn http_request_leasing(
+    environment: &Environment,
     application_id: &str,
     instance_id: &str,
     duration: u64,
 ) -> LldResult<Option<u64>> {
-    let client = Client::new();
-
     let request = RestLeasingRequest {
         application_id: application_id.to_owned(),
         instance_id: instance_id.to_owned(),
         duration,
     };
 
-    let req = Request::builder()
-        .method(Method::POST)
-        .uri(env::HTTP_REQUEST_URI.as_str())
-        .header("content-type", "application/json")
-        .body(Body::from(serde_json::to_vec(&request)?))?;
-
-    let mut resp = client.request(req).await?;
-
-    let bytes = hyper::body::to_bytes(resp.body_mut()).await?;
-    let result = String::from_utf8(bytes.into_iter().collect())?;
-
-    let response: RestLeasingResponse = serde_json::from_str(&result)?;
+    let response = reqwest::Client::new()
+        .post(&environment.http_request_uri)
+        .json(&request)
+        .send()
+        .await?
+        .json::<RestLeasingResponse>()
+        .await?;
 
     Ok(match response {
         RestLeasingResponse::Granted { validity } => Some(validity),
@@ -45,11 +72,12 @@ pub async fn http_request_leasing(
 }
 
 pub async fn tcp_request_leasing(
+    environment: &Environment,
     application_id: u64,
     instance_id: u64,
     duration: u64,
 ) -> LldResult<Option<u64>> {
-    let mut stream = TcpStream::connect(env::TCP_REQUEST_URI.as_str())
+    let mut stream = TcpStream::connect(&environment.tcp_request_uri)
         .await
         .map_err(|error| {
             LldError::WrappedError("tcp_request_leasing - connect error", format!("{}", error))

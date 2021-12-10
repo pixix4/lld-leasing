@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
-use crate::{
-    context_batching::ContextBatching, context_naive::ContextNaive, utils::get_current_time,
-    LldResult,
-};
+use lld_common::get_current_time;
+
+use crate::context_batching::ContextBatching;
+use crate::context_naive::ContextNaive;
+use crate::LldResult;
 
 #[derive(Clone)]
 pub enum Context {

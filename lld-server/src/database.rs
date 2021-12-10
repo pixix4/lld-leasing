@@ -40,7 +40,7 @@ impl DatabaseTask {
 mod database_connection {
 
     use crate::sqlite::Connection as SqliteConnection;
-    use crate::{env, LldResult};
+    use crate::LldResult;
 
     use super::DatabaseValue;
 
@@ -50,7 +50,7 @@ mod database_connection {
 
     impl Connection {
         pub fn open() -> LldResult<Self> {
-            let connection = SqliteConnection::open(env::DATABASE_URI.as_str())?;
+            let connection = SqliteConnection::open("./database.db")?;
             Ok(Self { connection })
         }
 
@@ -137,6 +137,7 @@ mod database_connection {
     }
 }
 
+#[allow(dead_code)]
 pub enum DatabaseValue {
     Integer(i64),
     Float(f64),

@@ -1,35 +1,17 @@
-use serde::{Deserialize, Serialize};
 use warp::Filter;
 
-use crate::{context::Context, env};
+use crate::context::Context;
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RestLeasingRequest {
-    pub application_id: String,
-    pub instance_id: String,
-    pub duration: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "lowercase")]
-pub enum RestLeasingResponse {
-    Granted { validity: u64 },
-    Rejected,
-    Error,
-}
-
-pub async fn start_server(context: Context) {
+pub async fn start_server(context: Context, port: u16) {
     let api = filters::leasing(context);
     let routes = api.with(warp::log("http_api"));
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], *env::HTTP_PORT))
-        .await;
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
 mod filters {
-    use super::{handlers, RestLeasingRequest};
+    use super::handlers;
     use crate::context::Context;
+    use lld_common::RestLeasingRequest;
     use warp::Filter;
 
     pub fn leasing(
@@ -61,10 +43,10 @@ mod filters {
 }
 
 mod handlers {
+    use lld_common::{RestLeasingRequest, RestLeasingResponse};
+
     use crate::context::{Context, LeasingResponse};
     use std::convert::Infallible;
-
-    use super::{RestLeasingRequest, RestLeasingResponse};
 
     pub async fn request_leasing(
         request: RestLeasingRequest,

@@ -1,19 +1,14 @@
 use std::{net::SocketAddr, time::Instant};
 
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-    task,
-};
+use lld_common::unpack_tcp_packet;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::task;
 
-use crate::{
-    context::{Context, LeasingResponse},
-    env,
-    utils::unpack_tcp_packet,
-};
+use crate::context::{Context, LeasingResponse};
 
-pub async fn start_server(context: Context) {
-    let listener = TcpListener::bind(SocketAddr::new("0.0.0.0".parse().unwrap(), *env::TCP_PORT))
+pub async fn start_server(context: Context, port: u16) {
+    let listener = TcpListener::bind(SocketAddr::new("0.0.0.0".parse().unwrap(), port))
         .await
         .unwrap();
 

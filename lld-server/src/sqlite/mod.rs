@@ -1,8 +1,7 @@
 mod ffi;
 
-use crate::{LldError, LldResult};
-
 use libc::{c_char, c_int, c_void};
+use lld_common::{LldError, LldResult};
 use std::marker::PhantomData;
 use std::path::Path;
 
