@@ -50,6 +50,7 @@ mod database_connection {
 
     impl Connection {
         pub fn open() -> LldResult<Self> {
+            info!("Connect to sqlite database");
             let connection = SqliteConnection::open("./database.db")?;
             Ok(Self { connection })
         }
@@ -99,6 +100,7 @@ mod database_connection {
 
     impl Connection {
         pub fn open() -> LldResult<Self> {
+            info!("Connect to dqlite database");
             let connection = DqliteConnection::open("leasings")?;
             Ok(Self { connection })
         }

@@ -18,7 +18,7 @@ use context::Context;
 use context_batching::ContextBatching;
 use context_naive::ContextNaive;
 use database::Database;
-use lld_common::{LldResult, LldMode};
+use lld_common::{LldMode, LldResult};
 
 use tokio::spawn;
 
@@ -55,9 +55,10 @@ async fn main() -> LldResult<()> {
     let db = Database::open()?;
     db.init()?;
 
+    info!("Start context in {:?} mode", mode);
     let context = match mode {
-        LldMode::Naive => Context::Naive(ContextNaive::new(db, true)?),
-        LldMode::NaiveCaching => Context::Naive(ContextNaive::new(db, false)?),
+        LldMode::Naive => Context::Naive(ContextNaive::new_without_cache(db)?),
+        LldMode::NaiveCaching => Context::Naive(ContextNaive::new(db)?),
         LldMode::Batching => Context::Batching(ContextBatching::new(db)?),
     };
 

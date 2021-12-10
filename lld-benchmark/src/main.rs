@@ -25,7 +25,7 @@ async fn start_round(mode: LldMode) -> LldResult<Vec<String>> {
         );
         exit(1);
     }
-    let id = docker::start_container(docker::IMAGE_DQLITE).await?;
+    let id = docker::start_container(docker::IMAGE_DQLITE, &[24000, 25000, 26000], &[]).await?;
     containers.push(id);
 
     if !docker::check_image_exists(docker::IMAGE_SERVER).await? {
@@ -36,7 +36,12 @@ async fn start_round(mode: LldMode) -> LldResult<Vec<String>> {
         );
         exit(1);
     }
-    let id = docker::start_container(docker::IMAGE_SERVER).await?;
+    let id = docker::start_container(
+        docker::IMAGE_SERVER,
+        &[3030, 3040],
+        &[("MODE", mode.to_string().as_str())],
+    )
+    .await?;
     containers.push(id);
 
     Ok(containers)

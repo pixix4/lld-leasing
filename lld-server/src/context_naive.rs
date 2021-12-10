@@ -16,16 +16,18 @@ pub struct ContextNaive {
 }
 
 impl ContextNaive {
-    #[allow(clippy::new_without_default)]
-    pub fn new(db: Database, disable_cache: bool) -> LldResult<Self> {
-        let cache = if disable_cache {
-            None
-        } else {
-            Some(ContextCache::new(&db)?)
-        };
+    pub fn new(db: Database) -> LldResult<Self> {
+        let cache = Some(ContextCache::new(&db)?);
         Ok(Self {
             db: Arc::new(Mutex::new(db)),
             cache,
+        })
+    }
+
+    pub fn new_without_cache(db: Database) -> LldResult<Self> {
+        Ok(Self {
+            db: Arc::new(Mutex::new(db)),
+            cache: None,
         })
     }
 

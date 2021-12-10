@@ -12,6 +12,7 @@ pub async fn start_server(context: Context, port: u16) {
         .await
         .unwrap();
 
+    info!("Start tcp server at 0.0.0.0:{}", port);
     loop {
         let (socket, addr) = listener.accept().await.unwrap();
 

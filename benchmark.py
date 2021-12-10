@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 def main():
     data = pandas.read_csv('./logs/benchmark.csv', header=0)
-    grouped = data.groupby(['count', 'type']).mean()
+    grouped = data.groupby(['count', 'type'], sort=False).mean()
 
     print(grouped)
 
@@ -15,7 +15,7 @@ def main():
     fig.set_ylabel('Avg response time [ms]')
     fig.legend()
 
-    plt.semilogy()
+    # plt.semilogy()
     plt.tight_layout()
     plt.savefig('logs/response-time-granted.png')
     plt.clf()
@@ -25,7 +25,7 @@ def main():
     fig.set_ylabel('Avg response time [ms]')
     fig.legend()
 
-    plt.semilogy()
+    # plt.semilogy()
     plt.tight_layout()
     plt.savefig('logs/response-time-rejected.png')
     plt.clf()
@@ -35,7 +35,7 @@ def main():
     fig.set_ylabel('Number of timeouts')
     fig.legend()
 
-    plt.semilogy()
+    # plt.semilogy()
     plt.tight_layout()
     plt.savefig('logs/response-count-timeout.png')
     plt.clf()

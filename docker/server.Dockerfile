@@ -32,6 +32,10 @@ ENV CARGO_TERM_COLOR always
 ENV LD_LIBRARY_PATH /usr/local/lib
 ENV PATH /usr/local/cargo/bin:$PATH
 ENV RUST_BACKTRACE 1
+ENV RUST_LOG info
+
+EXPOSE 3030
+EXPOSE 3040
 
 RUN mkdir src/
 RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
@@ -68,11 +72,8 @@ COPY lld-server/ lld-server/
 COPY lld-client/ lld-client/
 COPY lld-benchmark/ lld-benchmark/
 WORKDIR /root/lld-leasing/lld-server
-RUN cargo install --path . --locked
+RUN cargo install --path . --locked --features dqlite
 WORKDIR /root/lld-leasing
 COPY ips.csv ./
 
 CMD /usr/local/cargo/bin/lld-server
-
-EXPOSE 3030
-EXPOSE 3040
