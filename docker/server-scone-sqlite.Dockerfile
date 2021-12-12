@@ -15,8 +15,6 @@ RUN curl https://www.sqlite.org/2021/sqlite-autoconf-3370000.tar.gz > sqlite-aut
     && make install
 
 WORKDIR /root/lld-leasing
-ENV CARGO_TERM_COLOR always
-ENV RUST_BACKTRACE 1
 
 COPY . .
 

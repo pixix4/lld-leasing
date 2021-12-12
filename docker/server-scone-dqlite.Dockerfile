@@ -57,8 +57,6 @@ WORKDIR /root/lib
 RUN make install
 
 WORKDIR /root/lld-leasing
-ENV CARGO_TERM_COLOR always
-ENV RUST_BACKTRACE 1
 
 COPY . .
 
@@ -72,7 +70,7 @@ ENV RUST_LOG info
 EXPOSE 3030
 EXPOSE 3040
 
-ENTRYPOINT [ "/usr/local/bin/lld-server" ] 
+ENTRYPOINT [ "/usr/local/bin/lld-server" ]
 
 COPY ./ips.csv ./
 COPY --from=builder /root/.cargo/bin/lld-server /usr/local/bin

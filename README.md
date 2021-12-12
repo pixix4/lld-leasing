@@ -3,32 +3,59 @@
 ## Build
 
 ```bash
+% Build dqlite server image
 docker build -t pixix4/dqlite:latest -f docker/dqlite.Dockerfile .
-docker build -t pixix4/lld-native-sqlite:latest -f docker/server-native-sqlite.Dockerfile .
+
+% Build leasing server image
 docker build -t pixix4/lld-native-dqlite:latest -f docker/server-native-dqlite.Dockerfile .
-docker build -t pixix4/lld-scone-sqlite:latest -f docker/server-scone-sqlite.Dockerfile .
+% or with sgx/scone
 docker build -t pixix4/lld-scone-dqlite:latest -f docker/server-scone-dqlite.Dockerfile .
 ```
 
 ## Run
 
 ```bash
+% Start dqlite server
 docker run --rm -it -p 24000:24000 -p 25000:25000 -p 26000:26000 pixix4/dqlite:latest
 
-docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-native-sqlite:latest
+% Start leasing server
 docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-native-dqlite:latest
-docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-scone-sqlite:latest
+% or with sgx/scone
 docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-scone-dqlite:latest
 
-cd lld-client
-cargo run -- "application-id"
+% Start client
+cargo run --release -p lld-client -- "application-id"
 ```
 
 ## Benchmark
 
 ```bash
-docker run --rm pixix4/lld:latest benchmark --repeat=4 --max=10 > ./logs/benchmark.csv
+cargo run --release -p lld-benchmark -- --max 4 --repeat 2 --container NativeDqlite > logs/benchmark.csv
 python3 benchmark.py
+```
+
+Usage of `lld-benchmark`:
+```
+USAGE:
+    lld-benchmark [OPTIONS] [SUBCOMMAND]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -c, --container <container>     [env: LLD_CONTAINER=]  [possible values: NativeSqlite, NativeDqlite, SconeSqlite,
+                                   SconeDqlite]
+    -d, --duration <duration>       [env: LLD_DURATION=]
+        --build <force_build>       [env: LLD_FORCE_BUILD=]
+        --http_uri <http_uri>       [env: LLD_HTTP_URI=]
+    -m, --max <max>                 [env: LLD_MAX=]
+    -r, --repeat <repeat>           [env: LLD_REPEAT=]
+        --tcp_uri <tcp_uri>         [env: LLD_TCP_URI=]
+
+SUBCOMMANDS:
+    build    Builds the docker images without running the tests
+    help     Prints this message or the help of the given subcommand(s)
 ```
 
 A benchmark round creates `N` clients that continuously send leasing requests for 3 seconds. 2 clients each use the same `application id` with different `instance id`s. Thus there are `N/2` clients with granted leases and `N/2` clients with rejected leases. Leasings requests timeout after 1 second.
