@@ -10,6 +10,8 @@ docker build -t pixix4/lld:latest -f docker/server-sqlite.Dockerfile .
 
 ```bash
 docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld:latest
+
+docker run --rm -it -p 24000:24000 -p 25000:25000 -p 26000:26000 pixix4/dqlite:latest
 ```
 
 ## Benchmark

@@ -59,16 +59,27 @@ pub struct DqliteValue {
     pub union_value: DqliteValueUnion,
 }
 
-#[link(name = "dqlite")]
+#[link(name = "sqlite3", kind = "static")]
+extern "C" {}
+
+#[link(name = "dqlite", kind = "static")]
+extern "C" {
+
+    pub fn clientInit(client: *mut Dqlite, fd: c_int) -> c_int;
+
+    pub fn clientSendHandshake(client: *mut Dqlite) -> c_int;
+
+    pub fn init_ips(ipsfile: *const c_char);
+
+    pub fn get_n_servers() -> c_int;
+}
+
+#[link(name = "dqlitec", kind = "static")]
 extern "C" {
 
     pub static mut clients: [Dqlite; 3];
 
     pub fn connect_socket(fd: *mut c_int, raw_str_address: *const c_char) -> c_int;
-
-    pub fn clientInit(client: *mut Dqlite, fd: c_int) -> c_int;
-
-    pub fn clientSendHandshake(client: *mut Dqlite) -> c_int;
 
     pub fn addServer(client: *mut Dqlite, id: c_uint, address: *const c_char) -> c_int;
 
@@ -79,10 +90,4 @@ extern "C" {
     pub fn raw_query(rows: *mut DqliteRows, stmt: *const c_char) -> c_int;
 
     pub fn set_n_clients(new_n_clients: c_int);
-
-    pub fn init_ips(ipsfile: *const c_char);
-
-    pub fn get_n_servers() -> c_int;
-
-    // pub fn get_ip(index: c_int) -> *const c_char;
 }
