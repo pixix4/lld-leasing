@@ -3,14 +3,13 @@
 ## Build
 
 ```bash
-docker build -t pixix4/lld:latest .
+docker build -t pixix4/lld:latest -f docker/server-sqlite.Dockerfile .
 ```
 
 ## Run
 
 ```bash
-docker run --rm pixix4/lld:latest server
-docker run --rm pixix4/lld:latest client "application-id"
+docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld:latest
 ```
 
 ## Benchmark

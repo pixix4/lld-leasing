@@ -1,4 +1,4 @@
-target/
-logs/
-images/
 dqlite-client-master/
+images/
+logs/
+target/

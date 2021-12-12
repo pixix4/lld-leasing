@@ -8,10 +8,13 @@ mod context;
 mod context_batching;
 mod context_naive;
 mod database;
-mod dqlite;
 mod http_api;
-mod sqlite;
 mod tcp_api;
+
+#[cfg(feature = "dqlite")]
+mod dqlite;
+#[cfg(not(feature = "dqlite"))]
+mod sqlite;
 
 use clap::{App, Arg};
 use context::Context;
