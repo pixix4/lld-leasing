@@ -1,4 +1,4 @@
-FROM registry.scontain.com:5050/sconecuratedimages/crosscompilers:ubuntu
+FROM registry.scontain.com:5050/sconecuratedimages/crosscompilers:ubuntu as builder
 
 # install dependencies
 RUN apt update \
@@ -16,17 +16,21 @@ RUN curl https://www.sqlite.org/2021/sqlite-autoconf-3370000.tar.gz > sqlite-aut
 
 WORKDIR /root/lld-leasing
 ENV CARGO_TERM_COLOR always
-ENV PATH /usr/local/cargo/bin:$PATH
 ENV RUST_BACKTRACE 1
-ENV RUST_LOG info
-
-EXPOSE 3030
-EXPOSE 3040
 
 COPY . .
 
 WORKDIR /root/lld-leasing/lld-server
 RUN scone cargo install --path . --locked --target=x86_64-scone-linux-musl
-WORKDIR /root/lld-leasing
 
-CMD /root/.cargo/bin/lld-server
+FROM alpine:3.14
+
+ENV RUST_BACKTRACE 1
+ENV RUST_LOG info
+EXPOSE 3030
+EXPOSE 3040
+
+ENTRYPOINT [ "/usr/local/bin/lld-server" ]
+
+COPY ./ips.csv ./
+COPY --from=builder /root/.cargo/bin/lld-server /usr/local/bin

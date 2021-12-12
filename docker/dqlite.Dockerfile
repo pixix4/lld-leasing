@@ -26,10 +26,9 @@ ADD run_server.c /root/
 WORKDIR /root/
 RUN gcc run_server.c -ldqlite -lraft -lsqlite3 -o /root/server
 
-CMD SERVER_ADDRESS=0.0.0.0 NODE_ID=1 PORT=24000 /root/server > /root/1.log & \
-    SERVER_ADDRESS=0.0.0.0 NODE_ID=2 PORT=25000 /root/server > /root/2.log & \
-    SERVER_ADDRESS=0.0.0.0 NODE_ID=3 PORT=26000 /root/server > /root/3.log
-
 EXPOSE 24000
 EXPOSE 25000
 EXPOSE 26000
+
+COPY ./dqlite-entrypoint.sh /
+ENTRYPOINT ["/dqlite-entrypoint.sh"]

@@ -78,7 +78,11 @@ async fn main() -> LldResult<()> {
     });
 
     info!("Start working queue");
-    context.run().await?;
+    spawn(async move {
+        context.run().await.unwrap();
+    });
+
+    tokio::signal::ctrl_c().await?;
 
     Ok(())
 }

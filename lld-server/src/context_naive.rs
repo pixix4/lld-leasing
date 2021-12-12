@@ -32,7 +32,6 @@ impl ContextNaive {
     }
 
     pub async fn run(&self) -> LldResult<()> {
-        tokio::signal::ctrl_c().await?;
         Ok(())
     }
 

@@ -3,15 +3,25 @@
 ## Build
 
 ```bash
-docker build -t pixix4/lld:latest -f docker/server-sqlite.Dockerfile .
+docker build -t pixix4/dqlite:latest -f docker/dqlite.Dockerfile .
+docker build -t pixix4/lld-native-sqlite:latest -f docker/server-native-sqlite.Dockerfile .
+docker build -t pixix4/lld-native-dqlite:latest -f docker/server-native-dqlite.Dockerfile .
+docker build -t pixix4/lld-scone-sqlite:latest -f docker/server-scone-sqlite.Dockerfile .
+docker build -t pixix4/lld-scone-dqlite:latest -f docker/server-scone-dqlite.Dockerfile .
 ```
 
 ## Run
 
 ```bash
-docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld:latest
-
 docker run --rm -it -p 24000:24000 -p 25000:25000 -p 26000:26000 pixix4/dqlite:latest
+
+docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-native-sqlite:latest
+docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-native-dqlite:latest
+docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-scone-sqlite:latest
+docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-scone-dqlite:latest
+
+cd lld-client
+cargo run -- "application-id"
 ```
 
 ## Benchmark
