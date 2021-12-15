@@ -93,37 +93,35 @@ impl ContextBatching {
         duration: u64,
         now: u64,
     ) -> LldResult<LeasingResponse> {
-        let (tx, rx) = oneshot::channel();
-
         let cache_result = self
             .cache
             .request_leasing(application_id, instance_id, duration, now)
             .await?;
 
-        let entry = QueueEntry {
-            task: match cache_result {
-                CacheResult::Rejected => return Ok(LeasingResponse::Rejected),
-                CacheResult::GrantedInsert {
-                    application_id,
-                    instance_id,
-                    validity,
-                } => DatabaseTask::Insert {
-                    application_id,
-                    instance_id,
-                    validity,
-                },
-                CacheResult::GrantedUpdate {
-                    application_id,
-                    instance_id,
-                    validity,
-                } => DatabaseTask::Update {
-                    application_id,
-                    instance_id,
-                    validity,
-                },
+        let task = match cache_result {
+            CacheResult::Rejected => return Ok(LeasingResponse::Rejected),
+            CacheResult::GrantedInsert {
+                application_id,
+                instance_id,
+                validity,
+            } => DatabaseTask::Insert {
+                application_id,
+                instance_id,
+                validity,
             },
-            tx,
+            CacheResult::GrantedUpdate {
+                application_id,
+                instance_id,
+                validity,
+            } => DatabaseTask::Update {
+                application_id,
+                instance_id,
+                validity,
+            },
         };
+
+        let (tx, rx) = oneshot::channel();
+        let entry = QueueEntry { task, tx };
 
         {
             let mut queue = self.queue.write().await;

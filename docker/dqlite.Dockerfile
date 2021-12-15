@@ -4,21 +4,21 @@ FROM alpine:3.14
 RUN apk update \
     && apk add git bash vim make cmake autoconf sqlite-dev libuv-dev gcc automake libtool musl-dev curl \
     && apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing raft-dev
-RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite
-WORKDIR dqlite
 
-# compile dqlite
-RUN autoreconf -i \
+# build dqlite
+WORKDIR /root
+RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite \
+    && cd dqlite \
+    && autoreconf -i \
     && ./configure \
-    && make -j8 install
+    && make && make install
 
 # adjust header file (?)
+WORKDIR /root/dqlite
 RUN mkdir -p /usr/local/include/dqlite/lib \
     && cp src/*.h /usr/local/include/dqlite/ \
-    && cp src/lib/*.h /usr/local/include/dqlite/lib/
-
-# adjust header file-2 (?)
-RUN sed -i 's/..\/..\/include\///g' /usr/local/include/dqlite/lib/serialize.h \
+    && cp src/lib/*.h /usr/local/include/dqlite/lib/ \
+    && sed -i 's/..\/..\/include\///g' /usr/local/include/dqlite/lib/serialize.h \
     && sed -i 's/..\/..\/include\///g' /usr/local/include/dqlite/lib/registry.h
 
 # prepare dqlite server program

@@ -86,7 +86,7 @@ async fn setup_images(container: Option<LldContainer>, force_build: bool) -> Lld
 async fn start_round(mode: LldMode, container: LldContainer) -> LldResult<Vec<ContainerRef>> {
     let mut containers = Vec::new();
     let mode_string = mode.to_string();
-    let env = [("MODE", mode_string.as_str())];
+    let env = [("LLD_MODE", mode_string.as_str())];
 
     match container {
         LldContainer::NativeSqlite => {

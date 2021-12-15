@@ -54,7 +54,7 @@ async fn main() -> LldResult<()> {
     let tcp_port = value_t!(m, "tcp_port", u16).unwrap_or(3040);
     let mode = value_t!(m, "mode", LldMode).unwrap_or_default();
 
-    info!("Initialze database");
+    info!("Initialize database");
     let db = Database::open()?;
     db.init()?;
 

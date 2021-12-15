@@ -2,18 +2,18 @@ use std::ops::Add;
 use std::time::{Duration, Instant};
 
 use lld_common::{get_current_time, tcp_request_leasing, Environment, LldResult};
-use tokio::time::timeout;
+use tokio::time::{sleep, timeout};
 use tokio::{spawn, task::JoinHandle};
 
 async fn request(environment: &Environment, application_id: u64, instance_id: u64) -> LoopResult {
-    let duration = 5000;
     let instant = Instant::now();
     let result = timeout(
         Duration::from_secs(1),
-        tcp_request_leasing(environment, application_id, instance_id, duration),
+        tcp_request_leasing(environment, application_id, instance_id, 5000),
     )
     .await;
     let time = instant.elapsed().as_millis();
+    sleep(Duration::from_millis(500)).await;
 
     let result = match result {
         Ok(result) => result,
