@@ -35,6 +35,7 @@ python3 benchmark.py
 ```
 
 Usage of `lld-benchmark`:
+
 ```
 USAGE:
     lld-benchmark [OPTIONS] [SUBCOMMAND]
@@ -60,44 +61,46 @@ SUBCOMMANDS:
 
 A benchmark round creates `N` clients that continuously send leasing requests for 3 seconds. 2 clients each use the same `application id` with different `instance id`s. Thus there are `N/2` clients with granted leases and `N/2` clients with rejected leases. Leasings requests timeout after 1 second.
 
+- AMD EPYC (with IBPB) (4) @ 2.495GHz with 8 GiB memory
+
 ### Use sqlite file as database
 
 Average response time of granted leases relative to the number of concurrent clients:
 
-![Average response time of granted leases relative to the number of concurrent clients](images/bench_0/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+![Average response time of granted leases relative to the number of concurrent clients](benchmark/native-sqlite/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
 
 Average response time of rejected leases relative to the number of concurrent clients:
 
-![Average response time of rejected leases relative to the number of concurrent clients](images/bench_0/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
+![Average response time of rejected leases relative to the number of concurrent clients](benchmark/native-sqlite/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
 
 Number of timeouts relative to the number of concurrent clients:
 
-![Number of timeouts relative to the number of concurrent clients](images/bench_0/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
-
-### Simulate dqlite network delay with a 10ms sleep before each sqlite request
-
-Average response time of granted leases relative to the number of concurrent clients:
-
-![Average response time of granted leases relative to the number of concurrent clients](images/bench_1/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
-
-Average response time of rejected leases relative to the number of concurrent clients:
-
-![Average response time of rejected leases relative to the number of concurrent clients](images/bench_1/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
-
-Number of timeouts relative to the number of concurrent clients:
-
-![Number of timeouts relative to the number of concurrent clients](images/bench_1/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
+- No timeouts
 
 ### Use local dqlite cluster with 3 servers as database
 
 Average response time of granted leases relative to the number of concurrent clients:
 
-![Average response time of granted leases relative to the number of concurrent clients](images/bench_2/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+![Average response time of granted leases relative to the number of concurrent clients](benchmark/native-dqlite/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
 
 Average response time of rejected leases relative to the number of concurrent clients:
 
-![Average response time of rejected leases relative to the number of concurrent clients](images/bench_2/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
+![Average response time of rejected leases relative to the number of concurrent clients](benchmark/native-dqlite/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
 
 Number of timeouts relative to the number of concurrent clients:
 
-![Number of timeouts relative to the number of concurrent clients](images/bench_2/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
+- No timeouts
+
+### Use local dqlite cluster with 3 servers as database and scone build (simulation mode)
+
+Average response time of granted leases relative to the number of concurrent clients:
+
+![Average response time of granted leases relative to the number of concurrent clients](benchmark/scone-dqlite/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+
+Average response time of rejected leases relative to the number of concurrent clients:
+
+![Average response time of rejected leases relative to the number of concurrent clients](benchmark/scone-dqlite/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
+
+Number of timeouts relative to the number of concurrent clients:
+
+![Number of timeouts relative to the number of concurrent clients](benchmark/scone-dqlite/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")

@@ -1,9 +1,9 @@
-FROM rust:1.56-bullseye
+FROM rust:1.54-bullseye
 
 # install dependencies
 RUN apt update \
     && apt install -y git bash vim make clang iproute2 cmake autoconf sqlite3 libsqlite3-0 libsqlite3-dev \
-                      libuv1-dev gcc automake libtool libraft-dev curl
+    libuv1-dev gcc automake libtool libraft-dev curl
 RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite
 WORKDIR dqlite
 
@@ -39,7 +39,6 @@ EXPOSE 25000
 EXPOSE 26000
 
 CMD /bin/bash
-COPY exec.sh ./
 COPY ips.csv ./
 
 ENV CARGO_TERM_COLOR always
