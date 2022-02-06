@@ -1,0 +1,47 @@
+name: $LLD_SESSION
+version: "0.3"
+
+access_policy:
+  read:
+   - CREATOR
+  update:
+   - CREATOR
+
+services:
+   - name: lld_server
+     image_name: lld_server_image
+     mrenclaves: [$MRENCLAVE]
+     command: "/usr/local/bin/lld-server"
+     environment:
+       SCONE_MODE: hw
+       SCONE_LOG: "7"
+     pwd: /
+
+images:
+   - name: lld_server_image
+     injection_files:
+        - path: /certificates/lld-server.crt
+          content: $$SCONE::lld.crt$$
+        - path: /certificates/lld-server.key
+          content: $$SCONE::lld.key$$
+
+secrets:
+    - name: api_ca_key
+      kind: private-key
+    - name: api_ca_cert
+      kind: x509-ca
+      export_public: true
+      private_key: api_ca_key
+    - name: lld_key
+      kind: private-key
+    - name: lld
+      kind: x509
+      private_key: lld_key
+      issuer: api_ca_cert
+      dns:
+        - api
+
+security:
+  attestation:
+    tolerate: [debug-mode, hyperthreading, outdated-tcb]
+    ignore_advisories: "*"

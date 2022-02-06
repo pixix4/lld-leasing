@@ -8,3 +8,6 @@ dqlite-client-master/
 *.csr
 *.key
 *.srl
+*.pem
+lld_session.yml
+myenv
