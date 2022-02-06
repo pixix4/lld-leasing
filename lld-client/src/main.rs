@@ -7,11 +7,40 @@ use std::io::{self, Write};
 use std::{process::exit, time::Duration};
 
 use clap::{App, Arg};
+use reqwest::Client;
 use tokio::{spawn, sync::mpsc, time::sleep};
 
 use lld_common::{
-    generate_random_id, get_current_time, http_request_leasing, Environment, LldResult,
+    generate_random_id, generate_random_u64, get_current_time, http_request_client,
+    http_request_leasing, tcp_request_leasing, Environment, LldResult,
 };
+
+enum RequestId {
+    Http {
+        application_id: String,
+        instance_id: String,
+        client: Client,
+    },
+    Tcp {
+        application_id: u64,
+        instance_id: u64,
+    },
+}
+impl RequestId {
+    fn get_application_id(&self) -> String {
+        match self {
+            RequestId::Http { application_id, .. } => format!("{}", application_id),
+            RequestId::Tcp { application_id, .. } => format!("{}", application_id),
+        }
+    }
+
+    fn get_instance_id(&self) -> String {
+        match self {
+            RequestId::Http { instance_id, .. } => format!("{}", instance_id),
+            RequestId::Tcp { instance_id, .. } => format!("{}", instance_id),
+        }
+    }
+}
 
 async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
     let mut validity = rx.recv().await.unwrap_or_else(get_current_time);
@@ -29,13 +58,32 @@ async fn run_background_task(mut rx: mpsc::Receiver<u64>) -> LldResult<()> {
     }
 }
 
+async fn request_leasing(
+    environment: &Environment,
+    request: &RequestId,
+    duration: u64,
+) -> LldResult<Option<u64>> {
+    match request {
+        RequestId::Http {
+            application_id,
+            instance_id,
+            client,
+        } => {
+            http_request_leasing(client, environment, &application_id, &instance_id, duration).await
+        }
+        RequestId::Tcp {
+            application_id,
+            instance_id,
+        } => tcp_request_leasing(environment, *application_id, *instance_id, duration).await,
+    }
+}
+
 async fn run_single_leasing_client(
     environment: &Environment,
-    application_id: &str,
-    instance_id: &str,
+    request: &RequestId,
     duration: u64,
 ) -> LldResult<u64> {
-    match http_request_leasing(environment, application_id, instance_id, duration).await? {
+    match request_leasing(environment, request, duration).await? {
         Some(validity) => Ok(validity),
         None => {
             error!("Could not get leasing, aborting!");
@@ -46,8 +94,7 @@ async fn run_single_leasing_client(
 
 async fn run_leasing_client_task(
     environment: &Environment,
-    application_id: &str,
-    instance_id: &str,
+    request: &RequestId,
     duration: u64,
     threshold: u64,
     tx: mpsc::Sender<u64>,
@@ -58,7 +105,7 @@ async fn run_leasing_client_task(
     sleep(Duration::from_millis(runtime as u64)).await;
 
     loop {
-        match http_request_leasing(environment, application_id, instance_id, duration).await {
+        match request_leasing(environment, request, duration).await {
             Ok(Some(validity)) => {
                 let now = get_current_time();
 
@@ -105,12 +152,15 @@ async fn main() {
                 .long("threshold")
                 .env("LLD_THRESHOLD"),
         )
+        .arg(Arg::with_name("tcp").long("tcp"))
         .get_matches();
 
     let http_uri = m
         .value_of("http_uri")
-        .unwrap_or("http://localhost:3030/request");
+        .unwrap_or("https://mac.local:3030/request");
     let tcp_uri = m.value_of("tcp_uri").unwrap_or("127.0.0.1:3040");
+
+    let use_tcp = m.is_present("tcp");
 
     let environment = Environment {
         http_request_uri: http_uri.to_owned(),
@@ -121,19 +171,30 @@ async fn main() {
     let duration = value_t!(m, "duration", u64).unwrap_or(5000);
     let threshold = value_t!(m, "threshold", u64).unwrap_or(50);
 
-    let instance_id = generate_random_id::<64>();
+    let request = if use_tcp {
+        RequestId::Tcp {
+            application_id: application_id.parse().unwrap(),
+            instance_id: generate_random_u64(),
+        }
+    } else {
+        RequestId::Http {
+            application_id: application_id.to_owned(),
+            instance_id: generate_random_id::<64>(),
+            client: http_request_client().unwrap(),
+        }
+    };
 
     let (tx, rx) = mpsc::channel::<u64>(8);
 
     info!("Configuration:");
-    info!("    application_id: '{}'", &application_id);
-    info!("    instance_id: '{}'", &instance_id);
+    info!("    application_id: '{}'", request.get_application_id());
+    info!("    instance_id: '{}'", request.get_instance_id());
     info!("    duration: '{}'", duration);
     info!("    threshold: '{}'", threshold);
     info!("");
 
     let init_validity;
-    match run_single_leasing_client(&environment, application_id, &instance_id, duration).await {
+    match run_single_leasing_client(&environment, &request, duration).await {
         Ok(validity) => {
             init_validity = validity;
         }
@@ -162,8 +223,7 @@ async fn main() {
     }
     match run_leasing_client_task(
         &environment,
-        application_id,
-        &instance_id,
+        &request,
         duration,
         threshold,
         tx,

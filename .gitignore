@@ -4,3 +4,7 @@
 *.db
 .DS_Store
 dqlite-client-master/
+*.crt
+*.csr
+*.key
+*.srl

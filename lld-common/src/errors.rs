@@ -15,6 +15,18 @@ impl From<reqwest::Error> for LldError {
     }
 }
 
+impl From<openssl::error::ErrorStack> for LldError {
+    fn from(error: openssl::error::ErrorStack) -> Self {
+        LldError::WrappedError("OpenSSL error stack", format!("{}", error))
+    }
+}
+
+impl From<openssl::ssl::Error> for LldError {
+    fn from(error: openssl::ssl::Error) -> Self {
+        LldError::WrappedError("OpenSSL ssl error", format!("{}", error))
+    }
+}
+
 impl From<std::string::FromUtf8Error> for LldError {
     fn from(error: std::string::FromUtf8Error) -> Self {
         LldError::WrappedError("utf8 decode error", format!("{}", error))

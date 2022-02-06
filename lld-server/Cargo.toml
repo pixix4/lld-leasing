@@ -11,7 +11,9 @@ dqlite = []
 lld-common = { path = "../lld-common" }
 
 tokio = { version = "1", features = ["full"] }
-warp = { version="0.3", default-features = false }
+tokio-openssl = "0.6"
+openssl = "0.10"
+warp = { version="0.3", default-features = false, features=["tls"] }
 
 clap = "2.34"
 log = "0.4"
