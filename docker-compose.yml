@@ -1,14 +1,17 @@
 version: '3.2'
 services:
     las:
-        image: sconecuratedimages/kubernetes:las-scone4.2.1
+        image: registry.scontain.com:5050/sconecuratedimages/kubernetes:las-scone5.3
+        environment:
+        - SCONE_LOG=DEBUG
         devices:
          - "$DEVICE"
-    python:
+    lld-server:
         image: "$IMAGE"
         devices:
          - "$DEVICE"
-        command: sh -c "sleep 5; SCONE_LOG=7 SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/lld_server /usr/local/bin/lld-server"
+        entrypoint: /bin/sh
+        command: -c "sleep 5;  SCONE_LOG=7 SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/lld_server /usr/local/bin/lld-server"
         depends_on:
          - las
         privileged: true

@@ -9,16 +9,15 @@ access_policy:
 
 services:
    - name: lld_server
-     image_name: lld_server_image
+     image_name: pixix4/lld-scone-sqlite
      mrenclaves: [$MRENCLAVE]
-     command: "/usr/local/bin/lld-server"
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "7"
      pwd: /
 
 images:
-   - name: lld_server_image
+   - name: pixix4/lld-scone-sqlite
      injection_files:
         - path: /certificates/lld-server.crt
           content: $$SCONE::lld.crt$$
