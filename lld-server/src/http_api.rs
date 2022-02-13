@@ -1,16 +1,22 @@
 use warp::Filter;
 
 use crate::context::Context;
+use crate::SslContext;
 
-pub async fn start_server(context: Context, port: u16) {
+pub async fn start_server(context: Context, port: u16, ssl_context: Option<SslContext>) {
     let api = filters::leasing(context);
     let routes = api.with(warp::log("http_api"));
-    warp::serve(routes)
-        .tls()
-        .cert_path("certificates/lld-server.crt")
-        .key_path("certificates/lld-server.key")
-        .run(([0, 0, 0, 0], port))
-        .await;
+
+    if let Some(ssl_context) = ssl_context {
+        warp::serve(routes)
+            .tls()
+            .cert_path(&ssl_context.cert_file)
+            .key_path(&ssl_context.key_file)
+            .run(([0, 0, 0, 0], port))
+            .await;
+    } else {
+        warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    }
 }
 
 mod filters {

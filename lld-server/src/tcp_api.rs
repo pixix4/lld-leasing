@@ -9,8 +9,9 @@ use tokio::task;
 use tokio_openssl::SslStream;
 
 use crate::context::{Context, LeasingResponse};
+use crate::SslContext;
 
-pub async fn start_server(context: Context, port: u16) {
+pub async fn start_server(context: Context, port: u16, ssl_context: Option<SslContext>) {
     let listener = TcpListener::bind(SocketAddr::new("0.0.0.0".parse().unwrap(), port))
         .await
         .unwrap();
@@ -19,26 +20,32 @@ pub async fn start_server(context: Context, port: u16) {
     loop {
         let (socket, addr) = listener.accept().await.unwrap();
 
-        let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
-        acceptor.set_ca_file("certificates/root.crt").unwrap();
-        acceptor
-            .set_private_key_file("certificates/lld-server.key", SslFiletype::PEM)
-            .unwrap();
-        acceptor
-            .set_certificate_chain_file("certificates/lld-server.crt")
-            .unwrap();
-        acceptor.check_private_key().unwrap();
-        let acceptor = acceptor.build();
+        if let Some(ref ssl_context) = ssl_context {
+            let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+            acceptor
+                .set_private_key_file(&ssl_context.key_file, SslFiletype::PEM)
+                .unwrap();
+            acceptor
+                .set_certificate_chain_file(&ssl_context.cert_file)
+                .unwrap();
+            acceptor.check_private_key().unwrap();
+            let acceptor = acceptor.build();
 
-        let ssl = Ssl::new(acceptor.context()).unwrap();
-        let mut stream = SslStream::new(ssl, socket).unwrap();
+            let ssl = Ssl::new(acceptor.context()).unwrap();
+            let mut stream = SslStream::new(ssl, socket).unwrap();
 
-        Pin::new(&mut stream).accept().await.unwrap();
+            Pin::new(&mut stream).accept().await.unwrap();
 
-        let socket_context = context.clone();
-        task::spawn(async move {
-            process_socket_request(stream, addr, socket_context).await;
-        });
+            let socket_context = context.clone();
+            task::spawn(async move {
+                process_socket_request(stream, addr, socket_context).await;
+            });
+        } else {
+            let socket_context = context.clone();
+            task::spawn(async move {
+                process_socket_request(socket, addr, socket_context).await;
+            });
+        }
     }
 }
 

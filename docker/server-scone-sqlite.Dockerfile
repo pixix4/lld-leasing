@@ -14,6 +14,7 @@ RUN curl https://www.sqlite.org/2021/sqlite-autoconf-3370000.tar.gz > sqlite-aut
     && make \
     && make install
 
+# build openssl
 WORKDIR /root
 RUN curl https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.4.2.tar.gz > libressl-3.4.2.tar.gz \
     && tar xvzf libressl-3.4.2.tar.gz \
@@ -30,7 +31,6 @@ WORKDIR /root/lld-leasing/lld-server
 
 ENV OPENSSL_STATIC 1
 ENV PKG_CONFIG_ALLOW_CROSS 1
-
 RUN scone cargo install --path . --locked --target=x86_64-scone-linux-musl
 
 FROM alpine:3.14

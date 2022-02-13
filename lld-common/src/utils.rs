@@ -7,6 +7,7 @@ use openssl::ssl::{SslConnector, SslMethod};
 use rand::{thread_rng, RngCore};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio_openssl::SslStream;
 
@@ -49,17 +50,23 @@ impl Default for LldMode {
     }
 }
 
-pub fn http_request_client() -> LldResult<Client> {
-    let cert = std::fs::read("cacert.pem")?;
-    let cert = reqwest::Certificate::from_pem(&cert)?;
+pub fn http_request_client(certificate_file: Option<&str>) -> LldResult<Client> {
+    if let Some(certificate_file) = certificate_file {
+        let cert = std::fs::read(certificate_file)?;
+        let cert = reqwest::Certificate::from_pem(&cert)?;
 
-    let client = reqwest::Client::builder()
-        .tls_built_in_root_certs(false)
-        .add_root_certificate(cert)
-        .danger_accept_invalid_certs(true)
-        .build()?;
+        let client = reqwest::Client::builder()
+            .tls_built_in_root_certs(false)
+            .add_root_certificate(cert)
+            .danger_accept_invalid_certs(true)
+            .build()?;
 
-    Ok(client)
+        Ok(client)
+    } else {
+        let client = reqwest::Client::builder().build()?;
+
+        Ok(client)
+    }
 }
 
 pub async fn http_request_leasing(
@@ -93,26 +100,15 @@ pub async fn http_request_leasing(
     })
 }
 
-pub async fn tcp_request_leasing(
-    environment: &Environment,
+async fn tcp_request_leasing_socket<T>(
+    mut stream: T,
     application_id: u64,
     instance_id: u64,
     duration: u64,
-) -> LldResult<Option<u64>> {
-    let mut connector = SslConnector::builder(SslMethod::tls())?;
-    connector.set_ca_file("certificates/lld-server.crt")?;
-    let ssl = connector.build().configure()?.into_ssl("api")?;
-
-    let stream = TcpStream::connect(&environment.tcp_request_uri)
-        .await
-        .map_err(|error| {
-            LldError::WrappedError("tcp_request_leasing - connect error", format!("{}", error))
-        })?;
-
-    let mut stream = SslStream::new(ssl, stream)?;
-
-    Pin::new(&mut stream).connect().await?;
-
+) -> LldResult<Option<u64>>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
     let packet = pack_tcp_packet(application_id, instance_id, duration);
     tokio::io::AsyncWriteExt::write_all(&mut stream, &packet)
         .await
@@ -134,6 +130,34 @@ pub async fn tcp_request_leasing(
         Ok(Some(duration + now))
     } else {
         Ok(None)
+    }
+}
+
+pub async fn tcp_request_leasing(
+    environment: &Environment,
+    application_id: u64,
+    instance_id: u64,
+    duration: u64,
+    certificate_file: Option<&str>,
+) -> LldResult<Option<u64>> {
+    let stream = TcpStream::connect(&environment.tcp_request_uri)
+        .await
+        .map_err(|error| {
+            LldError::WrappedError("tcp_request_leasing - connect error", format!("{}", error))
+        })?;
+
+    if let Some(certificate_file) = certificate_file {
+        let mut connector = SslConnector::builder(SslMethod::tls())?;
+        connector.set_ca_file(certificate_file)?;
+        let ssl = connector.build().configure()?.into_ssl("api")?;
+
+        let mut stream = SslStream::new(ssl, stream)?;
+
+        Pin::new(&mut stream).connect().await?;
+
+        tcp_request_leasing_socket(stream, application_id, instance_id, duration).await
+    } else {
+        tcp_request_leasing_socket(stream, application_id, instance_id, duration).await
     }
 }
 

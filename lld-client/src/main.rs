@@ -24,6 +24,7 @@ enum RequestId {
     Tcp {
         application_id: u64,
         instance_id: u64,
+        ssl_cert_file: Option<String>,
     },
 }
 impl RequestId {
@@ -74,7 +75,17 @@ async fn request_leasing(
         RequestId::Tcp {
             application_id,
             instance_id,
-        } => tcp_request_leasing(environment, *application_id, *instance_id, duration).await,
+            ssl_cert_file,
+        } => {
+            tcp_request_leasing(
+                environment,
+                *application_id,
+                *instance_id,
+                duration,
+                ssl_cert_file.as_deref(),
+            )
+            .await
+        }
     }
 }
 
@@ -152,10 +163,31 @@ async fn main() {
                 .long("threshold")
                 .env("LLD_THRESHOLD"),
         )
+        .arg(
+            Arg::with_name("ssl_cert_file")
+                .long("ssl_cert_file")
+                .env("LLD_CERT_FILE"),
+        )
         .arg(Arg::with_name("tcp").long("tcp"))
         .get_matches();
 
-    let http_uri = m.value_of("http_uri").unwrap_or("https://api:3030/request");
+    let ssl_cert_file = m
+        .value_of("ssl_cert_file")
+        .unwrap_or("certificates/lld-client.pem");
+
+    let ssl_cert_file = if std::path::Path::new(&ssl_cert_file).exists() {
+        info!("Client will use ssl encryption");
+        Some(ssl_cert_file)
+    } else {
+        info!("Client will use plain text");
+        None
+    };
+
+    let http_uri = if ssl_cert_file.is_some() {
+        m.value_of("http_uri").unwrap_or("https://api:3030/request")
+    } else {
+        m.value_of("http_uri").unwrap_or("http://api:3030/request")
+    };
     let tcp_uri = m.value_of("tcp_uri").unwrap_or("127.0.0.1:3040");
 
     let use_tcp = m.is_present("tcp");
@@ -173,12 +205,13 @@ async fn main() {
         RequestId::Tcp {
             application_id: application_id.parse().unwrap(),
             instance_id: generate_random_u64(),
+            ssl_cert_file: ssl_cert_file.map(str::to_string),
         }
     } else {
         RequestId::Http {
             application_id: application_id.to_owned(),
             instance_id: generate_random_id::<64>(),
-            client: http_request_client().unwrap(),
+            client: http_request_client(ssl_cert_file.as_deref()).unwrap(),
         }
     };
 

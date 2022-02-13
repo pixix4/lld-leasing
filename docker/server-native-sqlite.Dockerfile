@@ -2,7 +2,7 @@ FROM rust:1.54-alpine3.14 as builder
 
 # install dependencies
 RUN apk update \
-    && apk add gcc musl-dev sqlite-static
+    && apk add gcc musl-dev sqlite-static openssl-dev openssl-static pkg-config
 
 WORKDIR /root/lld-leasing
 

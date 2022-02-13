@@ -14,6 +14,8 @@ services:
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "DEBUG"
+       LLD_CERT_FILE: "/certificates/lld-server.crt"
+       LLD_KEY_FILE: "/certificates/lld-server.key"
      pwd: /
 
 images:
