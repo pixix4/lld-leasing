@@ -13,7 +13,7 @@ services:
      mrenclaves: [$MRENCLAVE]
      environment:
        SCONE_MODE: hw
-       SCONE_LOG: "7"
+       SCONE_LOG: "DEBUG"
      pwd: /
 
 images:

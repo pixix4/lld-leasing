@@ -6,14 +6,17 @@ services:
         - SCONE_LOG=DEBUG
         devices:
          - "$DEVICE"
+        ports:
+         - "18766:18766"
     lld-server:
         image: "$IMAGE"
         devices:
          - "$DEVICE"
         entrypoint: /bin/sh
-        command: -c "sleep 5;  SCONE_LOG=7 SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/lld_server /usr/local/bin/lld-server"
+        command: -c "sleep 10; SCONE_LOG=DEBUG SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/lld_server /usr/local/bin/lld-server"
         depends_on:
          - las
         privileged: true
         ports:
-         - "4996:4996"
+         - "3030:3030"
+         - "3040:3040"

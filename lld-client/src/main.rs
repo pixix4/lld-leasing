@@ -155,9 +155,7 @@ async fn main() {
         .arg(Arg::with_name("tcp").long("tcp"))
         .get_matches();
 
-    let http_uri = m
-        .value_of("http_uri")
-        .unwrap_or("https://mac.local:3030/request");
+    let http_uri = m.value_of("http_uri").unwrap_or("https://api:3030/request");
     let tcp_uri = m.value_of("tcp_uri").unwrap_or("127.0.0.1:3040");
 
     let use_tcp = m.is_present("tcp");

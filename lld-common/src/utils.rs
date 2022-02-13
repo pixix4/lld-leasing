@@ -50,7 +50,7 @@ impl Default for LldMode {
 }
 
 pub fn http_request_client() -> LldResult<Client> {
-    let cert = std::fs::read("certificates/lld-server.crt")?;
+    let cert = std::fs::read("cacert.pem")?;
     let cert = reqwest::Certificate::from_pem(&cert)?;
 
     let client = reqwest::Client::builder()
@@ -101,7 +101,7 @@ pub async fn tcp_request_leasing(
 ) -> LldResult<Option<u64>> {
     let mut connector = SslConnector::builder(SslMethod::tls())?;
     connector.set_ca_file("certificates/lld-server.crt")?;
-    let ssl = connector.build().configure()?.into_ssl("mac.local")?;
+    let ssl = connector.build().configure()?.into_ssl("api")?;
 
     let stream = TcpStream::connect(&environment.tcp_request_uri)
         .await
