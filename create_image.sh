@@ -18,7 +18,8 @@ export DEVICE="/dev/sgx"
 export CAS_MRENCLAVE="3061b9feb7fa67f3815336a085f629a13f04b0a1667c93b14ff35581dc8271e4"
 
 export CLI_IMAGE="registry.scontain.com:5050/community/cli"
-export LLD_MRENCLAVE="4dbef532334345b6189cf9769d99d019132bfb0ee54c5f62670e6f5d927f5777"
+export LLD_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
+export DQLITE_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
 
 # create random and hence, uniquee session number
 LLD_SESSION="LldSession-$RANDOM-$RANDOM-$RANDOM"
@@ -37,8 +38,7 @@ if [[ ! -c "$DEVICE" ]] ; then
     fi
 fi
 
-curl -k -X POST -H "Content-Type: application/json" -d '{"application_id": "1", "instance_id": "1", "duration": 5000}' https://localhost:3030/request
-
+# curl -k -X POST -H "Content-Type: application/json" -d '{"application_id": "1", "instance_id": "1", "duration": 5000}' https://localhost:3030/request
 
 # attest cas before uploading the session file, accept CAS running in debug
 # mode (-d) and outdated TCB (-G)

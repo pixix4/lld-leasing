@@ -80,8 +80,8 @@ async fn main() -> LldResult<()> {
     {
         info!("Server will use ssl encryption");
         Some(SslContext {
-            cert_file: ssl_key_file,
-            key_file: ssl_cert_file,
+            cert_file: ssl_cert_file,
+            key_file: ssl_key_file,
         })
     } else {
         info!("Server will use plain text");
