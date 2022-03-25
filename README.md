@@ -30,8 +30,8 @@ cargo run --release -p lld-client -- "application-id"
 ## Benchmark
 
 ```bash
-cargo run --release -p lld-benchmark -- --max 4 --repeat 2 --container NativeDqlite > logs/benchmark.csv
-python3 benchmark.py
+cargo run --release -p lld-benchmark | tee logs/benchmark.csv
+python3 benchmark.py logs/benchmark.csv
 ```
 
 Usage of `lld-benchmark`:
@@ -55,7 +55,6 @@ OPTIONS:
         --tcp_uri <tcp_uri>         [env: LLD_TCP_URI=]
 
 SUBCOMMANDS:
-    build    Builds the docker images without running the tests
     help     Prints this message or the help of the given subcommand(s)
 ```
 
@@ -104,3 +103,15 @@ Average response time of rejected leases relative to the number of concurrent cl
 Number of timeouts relative to the number of concurrent clients:
 
 ![Number of timeouts relative to the number of concurrent clients](benchmark/scone-dqlite/response-count-timeout.png "Number of timeouts relative to the number of concurrent clients")
+
+### Use scone attestation for server
+
+- `SconeDqlite*`: dqlite runs outside of scone
+
+Average response time of granted leases relative to the number of concurrent clients:
+
+![Average response time of granted leases relative to the number of concurrent clients](benchmark/attestation/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+
+Average response time of rejected leases relative to the number of concurrent clients:
+
+![Average response time of rejected leases relative to the number of concurrent clients](benchmark/attestation/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
