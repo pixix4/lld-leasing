@@ -32,7 +32,7 @@ EXPOSE 24000
 EXPOSE 25000
 EXPOSE 26000
 
-ENTRYPOINT ["/dqlite-entrypoint.sh"]
+ENTRYPOINT ["/dqlite-entrypoint-native.sh"]
 
-COPY ./dqlite-entrypoint.sh /
+COPY ./dqlite-entrypoint-native.sh /
 COPY --from=builder /root/server /root/server

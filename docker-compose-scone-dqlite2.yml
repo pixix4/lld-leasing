@@ -12,14 +12,7 @@ services:
       lld_network:
         ipv4_address: 172.20.0.2
   lld-dqlite:
-    image: "pixix4/scone-dqlite"
-    devices:
-      - "$DEVICE"
-    entrypoint: /bin/sh
-    command: -c "sleep 20; SCONE_CAS_ADDR=$SCONE_CAS_ADDR LLD_SESSION=$LLD_SESSION /dqlite-entrypoint-scone.sh"
-    depends_on:
-      - las
-    privileged: true
+    image: "pixix4/native-dqlite"
     networks:
       lld_network:
         ipv4_address: 172.20.0.11

@@ -149,7 +149,7 @@ pub async fn tcp_request_leasing(
     if let Some(ref certificate_file) = environment.ssl_cert_file {
         let mut connector = SslConnector::builder(SslMethod::tls())?;
         connector.set_ca_file(certificate_file)?;
-        let ssl = connector.build().configure()?.into_ssl("api")?;
+        let ssl = connector.build().configure()?.into_ssl("localhost")?;
 
         let mut stream = SslStream::new(ssl, stream)?;
 

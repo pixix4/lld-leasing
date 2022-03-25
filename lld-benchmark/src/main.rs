@@ -187,9 +187,9 @@ async fn main() -> LldResult<()> {
             }
         };
         let http_uri = if ssl_cert_file.is_some() {
-            m.value_of("http_uri").unwrap_or("https://api:3030/request")
+            m.value_of("http_uri").unwrap_or("https://localhost:3030/request")
         } else {
-            m.value_of("http_uri").unwrap_or("http://api:3030/request")
+            m.value_of("http_uri").unwrap_or("http://localhost:3030/request")
         };
 
         let environment = Environment {

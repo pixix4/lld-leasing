@@ -85,7 +85,7 @@ secrets:
       private_key: lld_key
       issuer: api_ca_cert
       dns:
-        - api
+        - localhost
 
 security:
   attestation:

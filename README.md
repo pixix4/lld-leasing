@@ -4,27 +4,99 @@
 
 ```bash
 % Build dqlite server image
-docker build -t pixix4/dqlite:latest -f docker/dqlite.Dockerfile .
+docker build -f docker/native-dqlite.Dockerfile -t pixix4/native-dqlite:latest .
+docker build -f docker/scone-dqlite.Dockerfile -t pixix4/scone-dqlite:latest .
 
 % Build leasing server image
-docker build -t pixix4/lld-native-dqlite:latest -f docker/server-native-dqlite.Dockerfile .
-% or with sgx/scone
-docker build -t pixix4/lld-scone-dqlite:latest -f docker/server-scone-dqlite.Dockerfile .
+docker build -f docker/server-scone-dqlite.Dockerfile -t pixix4/server-scone-dqlite:latest .
+
+% Setup scone
+./create_image.sh
 ```
 
 ## Run
 
 ```bash
-% Start dqlite server
-docker run --rm -it -p 24000:24000 -p 25000:25000 -p 26000:26000 pixix4/dqlite:latest
+source myenv
 
-% Start leasing server
-docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-native-dqlite:latest
-% or with sgx/scone
-docker run --rm -it -p 3030:3030 -p 3040:3040 pixix4/lld-scone-dqlite:latest
+% Start server
+docker-compose -f docker-compose-scone-dqlite.yml up
 
 % Start client
-cargo run --release -p lld-client -- "application-id"
+cargo run --release -p lld-client -- 1
+```
+
+If their is a attestation failure message like following you need to update the `DQLITE_MRENCLAVE` (or `SERVER_DQLITE_MRENCLAVE`) variable within `create_image.sh` and rerun the script.
+```
+[SCONE|FATAL] src/process/init.c:476:__scone_prepare_secure_config(): Could not initialize enclave state: Attestation failed
+  Caused by: CAS sent an attestation/configuration error: SCONE quote verification failed
+  Caused by: Failed to verify SCONE remote attestation report
+  Caused by: The program enclave is not trustworthy
+```
+
+Currently the server cannot start, cause the dqlite c_client halts the execution due to a failed initialization.
+
+```
+lld-server-dqlite_1  | clients: 3
+lld-server-dqlite_1  | Connecting to socket "172.20.0.11:24000" 0x10012d62a0
+lld-server-dqlite_1  | c_client - ip: 172.20.0.11
+lld-server-dqlite_1  | Connected to socket "172.20.0.11:24000": 0
+lld-server-dqlite_1  | Init client "172.20.0.11:24000"
+lld-server-dqlite_1  | Init client "172.20.0.11:24000" finished: 0
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:24000"
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:24000" finished 0
+lld-server-dqlite_1  | Connecting to socket "172.20.0.11:25000" 0x10012d62e0
+lld-server-dqlite_1  | Connected to socket "172.20.0.11:25000": 0
+lld-server-dqlite_1  | Init client "172.20.0.11:25000"
+lld-server-dqlite_1  | Init client "172.20.0.11:25000" finished: 0
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:25000"
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:25000" finished 0
+lld-server-dqlite_1  | Connecting to socket "172.20.0.11:26000" 0x10012d6380
+lld-server-dqlite_1  | Connected to socket "172.20.0.11:26000": 0
+lld-server-dqlite_1  | Init client "172.20.0.11:26000"
+lld-server-dqlite_1  | Init client "172.20.0.11:26000" finished: 0
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:26000"
+lld-server-dqlite_1  | Handshake to client "172.20.0.11:26000" finished 0
+lld-server-dqlite_1  | Adding server "172.20.0.11:25000" 0x10012d62e0
+lld-server-dqlite_1  | Error:: No error information
+lld-server-dqlite_1  | Added server "172.20.0.11:25000": -1
+lld-server-dqlite_1  | Adding server "172.20.0.11:26000" 0x10012d6380
+lld-dqlite_1         | [SCONE|WARN] src/syscall/syscall.c:31:__scone_ni_syscall(): system call: io_setup, number 206 is not supported
+```
+
+Alternativly their is  a working version that uses dqlite without scone:
+
+```bash
+docker-compose -f docker-compose-scone-dqlite2.yml up
+
+% Start client
+cargo run --release -p lld-client -- 1
+% Or manuelly request a lease
+curl -k -X POST -H "Content-Type: application/json" -d '{"application_id": "1", "instance_id": "1", "duration": 5000}' https://localhost:3030/request
+```
+
+In this setup dqlite seems to have problems too. The lld-server only can connect to the first server and when executing a command with `dqlite -s 172.20.0.11:24000,172.20.0.11:25000,172.20.0.11:26000 leasings` the following log output is continously created within the dqlite container:
+
+```
+Listen callback triggered
+[DEBUG] Using TCP
+[DEBUG] Reading received protocol
+[DEBUG] Transport read callback
+[DEBUG] Transport read callback - nread > 0 - successful
+[DEBUG] protocol callback
+[DEBUG] before decoding
+[DEBUG] after decoding
+[DEBUG] protocol is ok
+[DEBUG] Reading received message
+[DEBUG] Transport read callback
+[DEBUG] Transport read callback - nread > 0 - successful
+[DEBUG] Reading received request
+[DEBUG] Transport read callback
+[DEBUG] Transport read callback - nread > 0 - successful
+Request being handled by the gateway
+[DEBUG] Reading received message
+[DEBUG] Transport read callback
+[DEBUG] Transport read callback - nread < 0 - something wrong with the buffer?
 ```
 
 ## Benchmark

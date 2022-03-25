@@ -19,7 +19,7 @@ export CAS_MRENCLAVE="3061b9feb7fa67f3815336a085f629a13f04b0a1667c93b14ff35581dc
 export CLI_IMAGE="registry.scontain.com:5050/community/cli"
 export SERVER_SQLITE_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
 export SERVER_DQLITE_MRENCLAVE="ca54ff2b96644b051f92bbe71c47e24c3aefa044367b5e319f6f0e56ed12fe22"
-export DQLITE_MRENCLAVE="c93961b7cbe32f43a1fa2cfe52f9d58eaaa098018c6592141f0a29e6450fc512"
+export DQLITE_MRENCLAVE="cbecb85c7efb059e25f0b3726fc5d78019a4c2e8e22a42792036c8e4fbbedbe8"
 
 # create random and hence, uniquee session number
 LLD_SESSION="LldSession-$RANDOM-$RANDOM-$RANDOM"
@@ -65,6 +65,6 @@ export SCONE_CAS_ADDR="$SCONE_CAS_ADDR"
 export DEVICE="$DEVICE"
 EOF
 
-# curl -k -X GET "https://${SCONE_CAS_ADDR}:8081/v1/values/session=$LLD_SESSION" | jq -r .values.api_ca_cert.value > cacert.pem
+curl -k -X GET "https://${SCONE_CAS_ADDR}:8081/v1/values/session=$LLD_SESSION" | jq -r .values.api_ca_cert.value > cacert.pem
 
 echo "OK"
