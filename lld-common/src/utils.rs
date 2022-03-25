@@ -33,6 +33,7 @@ pub enum RestLeasingResponse {
 pub struct Environment {
     pub http_request_uri: String,
     pub tcp_request_uri: String,
+    pub ssl_cert_file: Option<String>,
 }
 
 arg_enum! {
@@ -138,7 +139,6 @@ pub async fn tcp_request_leasing(
     application_id: u64,
     instance_id: u64,
     duration: u64,
-    certificate_file: Option<&str>,
 ) -> LldResult<Option<u64>> {
     let stream = TcpStream::connect(&environment.tcp_request_uri)
         .await
@@ -146,7 +146,7 @@ pub async fn tcp_request_leasing(
             LldError::WrappedError("tcp_request_leasing - connect error", format!("{}", error))
         })?;
 
-    if let Some(certificate_file) = certificate_file {
+    if let Some(ref certificate_file) = environment.ssl_cert_file {
         let mut connector = SslConnector::builder(SslMethod::tls())?;
         connector.set_ca_file(certificate_file)?;
         let ssl = connector.build().configure()?.into_ssl("api")?;

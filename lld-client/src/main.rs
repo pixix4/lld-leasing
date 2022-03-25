@@ -24,7 +24,6 @@ enum RequestId {
     Tcp {
         application_id: u64,
         instance_id: u64,
-        ssl_cert_file: Option<String>,
     },
 }
 impl RequestId {
@@ -75,17 +74,7 @@ async fn request_leasing(
         RequestId::Tcp {
             application_id,
             instance_id,
-            ssl_cert_file,
-        } => {
-            tcp_request_leasing(
-                environment,
-                *application_id,
-                *instance_id,
-                duration,
-                ssl_cert_file.as_deref(),
-            )
-            .await
-        }
+        } => tcp_request_leasing(environment, *application_id, *instance_id, duration).await,
     }
 }
 
@@ -173,7 +162,7 @@ async fn main() {
 
     let ssl_cert_file = m
         .value_of("ssl_cert_file")
-        .unwrap_or("certificates/lld-client.pem");
+        .unwrap_or("certificates/client.pem");
 
     let ssl_cert_file = if std::path::Path::new(&ssl_cert_file).exists() {
         info!("Client will use ssl encryption");
@@ -195,6 +184,7 @@ async fn main() {
     let environment = Environment {
         http_request_uri: http_uri.to_owned(),
         tcp_request_uri: tcp_uri.to_owned(),
+        ssl_cert_file: ssl_cert_file.map(str::to_string),
     };
 
     let application_id = m.value_of("id").unwrap_or_default();
@@ -205,7 +195,6 @@ async fn main() {
         RequestId::Tcp {
             application_id: application_id.parse().unwrap(),
             instance_id: generate_random_u64(),
-            ssl_cert_file: ssl_cert_file.map(str::to_string),
         }
     } else {
         RequestId::Http {

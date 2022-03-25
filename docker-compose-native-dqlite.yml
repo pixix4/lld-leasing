@@ -1,0 +1,25 @@
+version: "3.2"
+services:
+  lld-dqlite:
+    image: "pixix4/native-dqlite"
+    networks:
+      lld_network:
+        ipv4_address: 172.20.0.11
+  lld-server-dqlite:
+    image: "pixix4/server-native-dqlite"
+    depends_on:
+      - lld-dqlite
+    ports:
+      - "3030:3030"
+      - "3040:3040"
+    networks:
+      lld_network:
+        ipv4_address: 172.20.0.3
+
+networks:
+  lld_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

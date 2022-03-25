@@ -1,9 +1,8 @@
-FROM alpine:3.14
+FROM alpine:3.14 as builder
 
 # install dependencies
-RUN apk update \
-    && apk add git bash vim make cmake autoconf sqlite-dev libuv-dev gcc automake libtool musl-dev curl \
-    && apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing raft-dev
+RUN apk add --no-cache git bash vim make cmake autoconf sqlite-static sqlite-dev libuv-dev libuv-static gcc automake libtool musl-dev curl file \
+    && apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community raft-dev raft-static
 
 # build dqlite
 WORKDIR /root
@@ -24,11 +23,16 @@ RUN mkdir -p /usr/local/include/dqlite/lib \
 # prepare dqlite server program
 ADD run_server.c /root/
 WORKDIR /root/
-RUN gcc run_server.c -ldqlite -lraft -lsqlite3 -o /root/server
+RUN gcc run_server.c -static -ldqlite -lraft -lsqlite3 -luv -o /root/server
 
+FROM alpine:3.14
+
+WORKDIR /root/
 EXPOSE 24000
 EXPOSE 25000
 EXPOSE 26000
 
-COPY ./dqlite-entrypoint.sh /
 ENTRYPOINT ["/dqlite-entrypoint.sh"]
+
+COPY ./dqlite-entrypoint.sh /
+COPY --from=builder /root/server /root/server

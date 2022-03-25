@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 echo "Starting dqlite server at 0.0.0.0:24000"
 echo "Starting dqlite server at 0.0.0.0:25000"

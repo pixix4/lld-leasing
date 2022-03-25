@@ -7,9 +7,9 @@ mod docker;
 
 use std::time::Duration;
 
-use clap::{App, Arg, SubCommand};
-use docker::{ContainerRef, DockerImage};
-use lld_common::{get_current_time, Environment, LldMode, LldResult};
+use clap::{App, Arg};
+use docker::DockerComposeFile;
+use lld_common::{get_current_time, Environment, LldResult};
 use log::info;
 use tokio::time::sleep;
 
@@ -31,99 +31,24 @@ impl Default for LldContainer {
     }
 }
 
-async fn setup_images(container: Option<LldContainer>, force_build: bool) -> LldResult<()> {
-    match container {
-        Some(container) => match container {
-            LldContainer::NativeSqlite => {
-                DockerImage::LldNativeSqlite
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-            }
-            LldContainer::NativeDqlite => {
-                DockerImage::DqliteServer
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-                DockerImage::LldNativeDqlite
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-            }
-            LldContainer::SconeSqlite => {
-                DockerImage::LldSconeSqlite
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-            }
-            LldContainer::SconeDqlite => {
-                DockerImage::DqliteServer
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-                DockerImage::LldSconeDqlite
-                    .build_image_if_not_exists(force_build)
-                    .await?;
-            }
-        },
-        None => {
-            DockerImage::DqliteServer
-                .build_image_if_not_exists(force_build)
-                .await?;
-            DockerImage::LldNativeDqlite
-                .build_image_if_not_exists(force_build)
-                .await?;
-            DockerImage::LldNativeSqlite
-                .build_image_if_not_exists(force_build)
-                .await?;
-            DockerImage::LldSconeDqlite
-                .build_image_if_not_exists(force_build)
-                .await?;
-            DockerImage::LldSconeSqlite
-                .build_image_if_not_exists(force_build)
-                .await?;
+impl Into<DockerComposeFile> for LldContainer {
+    fn into(self) -> DockerComposeFile {
+        match self {
+            LldContainer::NativeSqlite => DockerComposeFile::NativeSqlite,
+            LldContainer::NativeDqlite => DockerComposeFile::NativeDqlite,
+            LldContainer::SconeSqlite => DockerComposeFile::SconeSqlite,
+            LldContainer::SconeDqlite => DockerComposeFile::SconeDqlite,
         }
     }
-
-    Ok(())
 }
-
-async fn start_round(mode: LldMode, container: LldContainer) -> LldResult<Vec<ContainerRef>> {
-    let mut containers = Vec::new();
-    let mode_string = mode.to_string();
-    let env = [("LLD_MODE", mode_string.as_str())];
-
-    match container {
-        LldContainer::NativeSqlite => {
-            containers.push(DockerImage::LldNativeSqlite.start_container(&env).await?);
-        }
-        LldContainer::NativeDqlite => {
-            containers.push(DockerImage::DqliteServer.start_container(&[]).await?);
-            containers.push(DockerImage::LldNativeDqlite.start_container(&env).await?);
-        }
-        LldContainer::SconeSqlite => {
-            containers.push(DockerImage::LldSconeSqlite.start_container(&env).await?);
-        }
-        LldContainer::SconeDqlite => {
-            containers.push(DockerImage::DqliteServer.start_container(&[]).await?);
-            containers.push(DockerImage::LldSconeDqlite.start_container(&env).await?);
-        }
-    }
-
-    Ok(containers)
-}
-
-async fn stop_round(containers: Vec<ContainerRef>) -> LldResult<()> {
-    for container_ref in containers {
-        container_ref.stop_container().await?;
-    }
-    Ok(())
-}
-
 async fn start_step(
     environment: &Environment,
-    mode: LldMode,
     container: LldContainer,
     count: usize,
     repeat: usize,
     duration: usize,
 ) -> LldResult<()> {
-    let name = mode.to_string();
+    let name = container.to_string();
     for round in 0..repeat {
         info!(
             "Start round {} of {}: {}, {} clients, {} ms",
@@ -134,16 +59,19 @@ async fn start_step(
             duration
         );
 
-        let containers = start_round(mode, container).await?;
+        // let mode_string = mode.to_string();
+        // let env = [("LLD_MODE", mode_string.as_str())];
+        let file: DockerComposeFile = container.into();
+        file.up().await?;
 
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(40_000)).await;
 
         let stop_at = get_current_time() + (duration as u64);
         let result = start_concurrent_connections_round(environment, count, stop_at).await;
 
         sleep(Duration::from_millis(200)).await;
 
-        stop_round(containers).await?;
+        file.down().await?;
 
         match result {
             Ok(result) => {
@@ -222,61 +150,60 @@ async fn main() -> LldResult<()> {
                 .possible_values(&LldContainer::variants()),
         )
         .arg(
-            Arg::with_name("force_build")
-                .long("build")
-                .env("LLD_FORCE_BUILD"),
-        )
-        .subcommand(
-            SubCommand::with_name("build")
-                .about("Builds the docker images without running the tests")
-                .arg(
-                    Arg::with_name("image")
-                        .help("Name of the docker image. Build all if no name is specified."),
-                )
-                .arg(
-                    Arg::with_name("force_build")
-                        .long("build")
-                        .env("LLD_FORCE_BUILD"),
-                ),
+            Arg::with_name("ssl_cert_file")
+                .long("ssl_cert_file")
+                .env("LLD_CERT_FILE"),
         )
         .get_matches();
 
-    if let Some(m) = m.subcommand_matches("build") {
-        let force_build = m.is_present("force_build");
+    let ssl_cert_file = m.value_of("ssl_cert_file").unwrap_or("cacert.pem");
 
-        setup_images(None, force_build).await?;
-
-        return Ok(());
-    }
-
-    let http_uri = m
-        .value_of("http_uri")
-        .unwrap_or("http://localhost:3030/request");
     let tcp_uri = m.value_of("tcp_uri").unwrap_or("127.0.0.1:3040");
 
-    let environment = Environment {
-        http_request_uri: http_uri.to_owned(),
-        tcp_request_uri: tcp_uri.to_owned(),
-    };
-
-    let repeat = value_t!(m, "repeat", usize).unwrap_or(1);
-    let max = value_t!(m, "max", usize).unwrap_or(3);
+    let repeat = value_t!(m, "repeat", usize).unwrap_or(3);
+    let max = value_t!(m, "max", usize).unwrap_or(8);
     let duration = value_t!(m, "duration", usize).unwrap_or(5000);
-    let force_build = m.is_present("force_build");
-    let container = value_t!(m, "container", LldContainer).unwrap_or_default();
-
-    setup_images(Some(container), force_build).await?;
-
-    let mut count = 1;
 
     println!("type,count,granted_avg,rejected_avg,timeout_avg,error_avg,granted_count,rejected_count,timeout_count,error_count");
 
-    for _ in 1..max {
-        for mode in [LldMode::Naive, LldMode::NaiveCaching, LldMode::Batching] {
-            start_step(&environment, mode, container, count, repeat, duration).await?;
-        }
+    for container in [
+        // LldContainer::NativeSqlite,
+        // LldContainer::NativeDqlite,
+        // LldContainer::SconeSqlite,
+        LldContainer::SconeDqlite,
+    ] {
+        let ssl_cert_file = match container {
+            LldContainer::SconeSqlite => {
+                info!("Client will use ssl encryption");
+                Some(ssl_cert_file)
+            }
+            LldContainer::SconeDqlite => {
+                info!("Client will use ssl encryption");
+                Some(ssl_cert_file)
+            }
+            _ => {
+                info!("Client will use plain text");
+                None
+            }
+        };
+        let http_uri = if ssl_cert_file.is_some() {
+            m.value_of("http_uri").unwrap_or("https://api:3030/request")
+        } else {
+            m.value_of("http_uri").unwrap_or("http://api:3030/request")
+        };
 
-        count *= 2;
+        let environment = Environment {
+            http_request_uri: http_uri.to_owned(),
+            tcp_request_uri: tcp_uri.to_owned(),
+            ssl_cert_file: ssl_cert_file.map(str::to_string),
+        };
+
+        let mut count = 1;
+        for _ in 1..max {
+            start_step(&environment, container, count, repeat, duration).await?;
+
+            count *= 2;
+        }
     }
 
     Ok(())

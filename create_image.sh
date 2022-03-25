@@ -11,15 +11,15 @@ type -a scone || error "alias 'scone' undefined. Please add this to your .bashrc
 
 # CONFIG Parameters (might change)
 
-export IMAGE="pixix4/lld-scone-sqlite"
 export SCONE_CAS_ADDR="5-7-0.scone-cas.cf"
 export DEVICE="/dev/sgx"
 
 export CAS_MRENCLAVE="3061b9feb7fa67f3815336a085f629a13f04b0a1667c93b14ff35581dc8271e4"
 
 export CLI_IMAGE="registry.scontain.com:5050/community/cli"
-export LLD_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
-export DQLITE_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
+export SERVER_SQLITE_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
+export SERVER_DQLITE_MRENCLAVE="ca54ff2b96644b051f92bbe71c47e24c3aefa044367b5e319f6f0e56ed12fe22"
+export DQLITE_MRENCLAVE="c93961b7cbe32f43a1fa2cfe52f9d58eaaa098018c6592141f0a29e6450fc512"
 
 # create random and hence, uniquee session number
 LLD_SESSION="LldSession-$RANDOM-$RANDOM-$RANDOM"
@@ -53,7 +53,7 @@ fi
 
 # create session file
 
-MRENCLAVE=$LLD_MRENCLAVE envsubst '$MRENCLAVE $LLD_SESSION' < lld-template.yml > lld_session.yml
+envsubst '$SERVER_SQLITE_MRENCLAVE $SERVER_DQLITE_MRENCLAVE $DQLITE_MRENCLAVE $LLD_SESSION' < lld-template.yml > lld_session.yml
 # note: this is insecure - use scone session create instead
 curl -v -k -s --cert client.pem  --key client-key.pem  --data-binary @lld_session.yml -X POST https://$SCONE_CAS_ADDR:8081/session
 
@@ -62,9 +62,9 @@ curl -v -k -s --cert client.pem  --key client-key.pem  --data-binary @lld_sessio
 cat > myenv << EOF
 export LLD_SESSION="$LLD_SESSION"
 export SCONE_CAS_ADDR="$SCONE_CAS_ADDR"
-export IMAGE="$IMAGE"
 export DEVICE="$DEVICE"
-
 EOF
+
+# curl -k -X GET "https://${SCONE_CAS_ADDR}:8081/v1/values/session=$LLD_SESSION" | jq -r .values.api_ca_cert.value > cacert.pem
 
 echo "OK"

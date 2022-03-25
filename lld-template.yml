@@ -8,18 +8,63 @@ access_policy:
    - CREATOR
 
 services:
-   - name: lld_server
-     image_name: pixix4/lld-scone-sqlite
-     mrenclaves: [$MRENCLAVE]
+   - name: server_sqlite
+     image_name: pixix4/server-scone-sqlite
+     mrenclaves: [$SERVER_SQLITE_MRENCLAVE]
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "DEBUG"
        LLD_CERT_FILE: "/certificates/lld-server.crt"
        LLD_KEY_FILE: "/certificates/lld-server.key"
      pwd: /
+   - name: server_dqlite
+     image_name: pixix4/server-scone-dqlite
+     mrenclaves: [$SERVER_DQLITE_MRENCLAVE]
+     environment:
+       SCONE_MODE: hw
+       SCONE_LOG: "DEBUG"
+       LLD_CERT_FILE: "/certificates/lld-server.crt"
+       LLD_KEY_FILE: "/certificates/lld-server.key"
+     pwd: /
+   - name: dqlite1
+     image_name: pixix4/scone-dqlite
+     mrenclaves: [$DQLITE_MRENCLAVE]
+     environment:
+       SCONE_MODE: hw
+       SCONE_LOG: "DEBUG"
+       SERVER_ADDRESS: "0.0.0.0"
+       PORT: 24000
+       NODE_ID: 1
+     pwd: /
+   - name: dqlite2
+     image_name: pixix4/scone-dqlite
+     mrenclaves: [$DQLITE_MRENCLAVE]
+     environment:
+       SCONE_MODE: hw
+       SCONE_LOG: "DEBUG"
+       SERVER_ADDRESS: "0.0.0.0"
+       PORT: 25000
+       NODE_ID: 2
+     pwd: /
+   - name: dqlite3
+     image_name: pixix4/scone-dqlite
+     mrenclaves: [$DQLITE_MRENCLAVE]
+     environment:
+       SCONE_MODE: hw
+       SCONE_LOG: "DEBUG"
+       SERVER_ADDRESS: "0.0.0.0"
+       PORT: 26000
+       NODE_ID: 3
+     pwd: /
 
 images:
-   - name: pixix4/lld-scone-sqlite
+   - name: pixix4/server-scone-sqlite
+     injection_files:
+        - path: /certificates/lld-server.crt
+          content: $$SCONE::lld.crt$$
+        - path: /certificates/lld-server.key
+          content: $$SCONE::lld.key$$
+   - name: pixix4/server-scone-dqlite
      injection_files:
         - path: /certificates/lld-server.crt
           content: $$SCONE::lld.crt$$

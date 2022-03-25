@@ -1,9 +1,8 @@
 FROM rust:1.54-alpine3.14 as builder
 
 # install dependencies
-RUN apk update \
-    && apk add gcc musl-dev sqlite-dev sqlite-static libuv-dev libuv-static autoconf automake libtool make git openssl-dev openssl-libs-static pkgconf \
-    && apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community  raft-dev raft-static
+RUN apk add --no-cache gcc musl-dev sqlite-dev sqlite-static libuv-dev libuv-static autoconf automake libtool make git openssl-dev openssl-libs-static pkgconf \
+    && apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community  raft-dev raft-static
 
 # build dqlite
 WORKDIR /root
