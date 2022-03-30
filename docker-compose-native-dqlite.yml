@@ -7,6 +7,8 @@ services:
         ipv4_address: 172.20.0.11
   lld-server-dqlite:
     image: "pixix4/server-native-dqlite"
+    entrypoint: /bin/sh
+    command: -c "sleep 10; /usr/local/bin/lld-server"
     depends_on:
       - lld-dqlite
     ports:

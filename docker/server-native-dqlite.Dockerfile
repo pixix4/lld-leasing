@@ -6,7 +6,7 @@ RUN apk add --no-cache gcc musl-dev sqlite-dev sqlite-static libuv-dev libuv-sta
 
 # build dqlite
 WORKDIR /root
-RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite \
+RUN git clone https://github.com/ardhipoetra/dqlite --branch c_client \
     && cd dqlite \
     && autoreconf -i \
     && ./configure \

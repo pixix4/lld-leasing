@@ -6,7 +6,7 @@ RUN apk add --no-cache git bash vim make cmake autoconf sqlite-static sqlite-dev
 
 # build dqlite
 WORKDIR /root
-RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite \
+RUN git clone https://github.com/ardhipoetra/dqlite --branch c_client \
     && cd dqlite \
     && autoreconf -i \
     && ./configure \

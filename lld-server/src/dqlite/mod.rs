@@ -4,7 +4,7 @@ use std::ffi::CString;
 
 use crate::dqlite::ffi::{Dqlite, DqliteRows};
 
-use libc::c_int;
+use libc::{c_int, c_uint};
 use lld_common::{LldError, LldResult};
 
 macro_rules! raise(
@@ -51,7 +51,6 @@ impl Connection {
             println!("clients: {}", ffi::get_n_servers());
 
             for i in 0..ipc.len() {
-                // let ip = ::std::ffi::CStr::from_ptr(ffi::get_ip(i as i32));
                 let ip = &ipc[i];
                 println!("Connecting to socket {:?} {:?}", ip, ip.as_ptr());
 
@@ -62,8 +61,8 @@ impl Connection {
                     raise!("Cannot connect socket!");
                 }
 
-                println!("Init client {:?}", ip);
                 let client = &mut ffi::clients[i];
+                println!("Init client {:?} {:?}", ip, client);
                 let res = ffi::clientInit(client as *mut Dqlite, fd as c_int);
                 println!("Init client {:?} finished: {}", ip, res);
 
@@ -75,20 +74,12 @@ impl Connection {
                 }
             }
 
-            let mut i: usize = 0;
-            for client in &mut ffi::clients {
-                if i == 0 {
-                    i += 1;
-                    continue;
-                }
-
-                // let ip = ::std::ffi::CStr::from_ptr(ffi::get_ip(i as i32));
+            for i in 1..ipc.len() {
                 let ip = &ipc[i];
-                println!("Adding server {:?} {:?}", ip, ip.as_ptr());
-                let res = ffi::addServer(client as *mut Dqlite, i as u32, ip.as_ptr());
+                let client = &mut ffi::clients[i];
+                println!("Adding server {:?} {:?} {:?}", ip, ip.as_ptr(), client);
+                let res = ffi::addServer(client as *mut Dqlite, i as c_uint, ip.as_ptr());
                 println!("Added server {:?}: {}", ip, res);
-
-                i += 1;
             }
 
             println!("Send open {}", database_name);
@@ -139,17 +130,7 @@ impl Connection {
             println!("2 {}", rows.column_count);
 
             let args = (0..rows.column_count)
-                .map(|i| {
-                    i.to_string()
-                    // println!("2.1 {}", i);
-                    // let name = rows.column_names.offset(i as isize);
-
-                    // println!("2.2 {:?}", name);
-                    // println!("2.3 {:?}", c_str_to_str!(*name));
-                    // return c_str_to_str!(*name)
-                    //     .map(|s| s.to_owned())
-                    //     .unwrap_or_else(|_| i.to_string());
-                })
+                .map(|i| i.to_string())
                 .collect::<Vec<String>>();
 
             if rows.next.is_null() {

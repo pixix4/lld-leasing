@@ -18,8 +18,8 @@ export CAS_MRENCLAVE="3061b9feb7fa67f3815336a085f629a13f04b0a1667c93b14ff35581dc
 
 export CLI_IMAGE="registry.scontain.com:5050/community/cli"
 export SERVER_SQLITE_MRENCLAVE="1c8c1c975236e6c6d735046e36f124c62f22ade890dfb77a3185f93954c3448a"
-export SERVER_DQLITE_MRENCLAVE="ca54ff2b96644b051f92bbe71c47e24c3aefa044367b5e319f6f0e56ed12fe22"
-export DQLITE_MRENCLAVE="cbecb85c7efb059e25f0b3726fc5d78019a4c2e8e22a42792036c8e4fbbedbe8"
+export SERVER_DQLITE_MRENCLAVE="8ea3f6350f41534e97c41c8c9c66249ea59968ac49289de195079eb1c3d402d1"
+export DQLITE_MRENCLAVE="d5d166dab801202d3683488257846dafa0d0856292957eaaf2bf457c78a56f0b"
 
 # create random and hence, uniquee session number
 LLD_SESSION="LldSession-$RANDOM-$RANDOM-$RANDOM"
@@ -46,16 +46,17 @@ scone cas attest -G --only_for_testing-debug --only_for_testing-ignore-signer $S
 scone cas show-certificate > cas-ca.pem
 
 # ensure that we have self-signed client certificate
-
-if [[ ! -f client.pem || ! -f client-key.pem  ]] ; then
-    openssl req -newkey rsa:4096 -days 365 -nodes -x509 -out client.pem -keyout client-key.pem -config clientcertreq.conf
-fi
+# removed --> we are keeping the certificate from the scone cli
+# if [[ ! -f client.pem || ! -f client-key.pem  ]] ; then
+#     openssl req -newkey rsa:4096 -days 365 -nodes -x509 -out client.pem -keyout client-key.pem -config clientcertreq.conf
+# fi
 
 # create session file
 
 envsubst '$SERVER_SQLITE_MRENCLAVE $SERVER_DQLITE_MRENCLAVE $DQLITE_MRENCLAVE $LLD_SESSION' < lld-template.yml > lld_session.yml
 # note: this is insecure - use scone session create instead
-curl -v -k -s --cert client.pem  --key client-key.pem  --data-binary @lld_session.yml -X POST https://$SCONE_CAS_ADDR:8081/session
+# curl -v -k -s --cert client.pem  --key client-key.pem  --data-binary @lld_session.yml -X POST https://$SCONE_CAS_ADDR:8081/session
+scone session create lld_session.yml
 
 # create file with environment variables
 

@@ -29,15 +29,15 @@ RUN git clone https://github.com/lz4/lz4.git \
 
 # build raft
 WORKDIR /root
-RUN git clone https://github.com/canonical/raft.git \
+RUN git clone https://github.com/ardhipoetra/raft.git --branch rm_kaio \
     && cd raft \
     && autoreconf -i \
-    && ./configure \
+    && ./configure --enable-uv \
     && make && make install
 
 # build dqlite
 WORKDIR /root
-RUN git clone --branch c_client https://github.com/ardhipoetra/dqlite \
+RUN git clone https://github.com/ardhipoetra/dqlite --branch c_client \
     && cd dqlite \
     && autoreconf -i \
     && ./configure \
