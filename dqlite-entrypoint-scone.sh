@@ -1,8 +1,8 @@
 #!/bin/sh
 
-echo "Starting dqlite server at 0.0.0.0:24000"
-echo "Starting dqlite server at 0.0.0.0:25000"
-echo "Starting dqlite server at 0.0.0.0:26000"
+echo "Starting dqlite server at 172.20.0.11:24000"
+echo "Starting dqlite server at 172.20.0.11:25000"
+echo "Starting dqlite server at 172.20.0.11:26000"
 
 SCONE_LOG=DEBUG SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/dqlite1 /root/server > /root/1.log &
 SCONE_LOG=DEBUG SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/dqlite2 /root/server > /root/2.log &

@@ -32,7 +32,7 @@ services:
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "DEBUG"
-       SERVER_ADDRESS: "0.0.0.0"
+       SERVER_ADDRESS: "172.20.0.11"
        PORT: 24000
        NODE_ID: 1
      pwd: /
@@ -42,7 +42,7 @@ services:
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "DEBUG"
-       SERVER_ADDRESS: "0.0.0.0"
+       SERVER_ADDRESS: "172.20.0.11"
        PORT: 25000
        NODE_ID: 2
      pwd: /
@@ -52,7 +52,7 @@ services:
      environment:
        SCONE_MODE: hw
        SCONE_LOG: "DEBUG"
-       SERVER_ADDRESS: "0.0.0.0"
+       SERVER_ADDRESS: "172.20.0.11"
        PORT: 26000
        NODE_ID: 3
      pwd: /

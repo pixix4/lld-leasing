@@ -62,7 +62,7 @@ impl Connection {
                 }
 
                 let client = &mut ffi::clients[i];
-                println!("Init client {:?} {:?}", ip, client);
+                println!("Init client {:?}", ip);
                 let res = ffi::clientInit(client as *mut Dqlite, fd as c_int);
                 println!("Init client {:?} finished: {}", ip, res);
 
@@ -77,7 +77,7 @@ impl Connection {
             for i in 1..ipc.len() {
                 let ip = &ipc[i];
                 let client = &mut ffi::clients[i];
-                println!("Adding server {:?} {:?} {:?}", ip, ip.as_ptr(), client);
+                println!("Adding server {:?} {:?}", ip, ip.as_ptr());
                 let res = ffi::addServer(client as *mut Dqlite, i as c_uint, ip.as_ptr());
                 println!("Added server {:?}: {}", ip, res);
             }
