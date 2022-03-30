@@ -178,12 +178,10 @@ Number of timeouts relative to the number of concurrent clients:
 
 ### Use scone attestation for server
 
-- `SconeDqlite*`: dqlite runs outside of scone
-
 Average response time of granted leases relative to the number of concurrent clients:
 
-![Average response time of granted leases relative to the number of concurrent clients](benchmark/attestation/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
+![Average response time of granted leases relative to the number of concurrent clients](benchmark/attestation2/response-time-granted.png "Average response time of granted leases relative to the number of concurrent clients")
 
 Average response time of rejected leases relative to the number of concurrent clients:
 
-![Average response time of rejected leases relative to the number of concurrent clients](benchmark/attestation/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")
+![Average response time of rejected leases relative to the number of concurrent clients](benchmark/attestation2/response-time-rejected.png "Average response time of rejected leases relative to the number of concurrent clients")

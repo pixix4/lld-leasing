@@ -167,9 +167,9 @@ async fn main() -> LldResult<()> {
     println!("type,count,granted_avg,rejected_avg,timeout_avg,error_avg,granted_count,rejected_count,timeout_count,error_count");
 
     for container in [
-        // LldContainer::NativeSqlite,
-        // LldContainer::NativeDqlite,
-        // LldContainer::SconeSqlite,
+        LldContainer::NativeSqlite,
+        LldContainer::NativeDqlite,
+        LldContainer::SconeSqlite,
         LldContainer::SconeDqlite,
     ] {
         let ssl_cert_file = match container {
