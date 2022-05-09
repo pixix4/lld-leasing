@@ -26,8 +26,8 @@ impl DockerComposeFile {
     }
 
     pub async fn up(self) -> LldResult<()> {
-        let mut command = Command::new("docker-compose");
-        command.arg("-f").arg(self.filename());
+        let mut command = Command::new("docker");
+        command.arg("compose").arg("-f").arg(self.filename());
         command.arg("up").arg("-d");
 
         debug!("Docker command: {:?}", command);
@@ -48,8 +48,8 @@ impl DockerComposeFile {
     }
 
     pub async fn down(self) -> LldResult<()> {
-        let mut command = Command::new("docker-compose");
-        command.arg("-f").arg(self.filename());
+        let mut command = Command::new("docker");
+        command.arg("compose").arg("-f").arg(self.filename());
         command.arg("down");
 
         debug!("Docker command: {:?}", command);

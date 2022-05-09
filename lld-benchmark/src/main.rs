@@ -64,7 +64,7 @@ async fn start_step(
         let file: DockerComposeFile = container.into();
         file.up().await?;
 
-        sleep(Duration::from_millis(40_000)).await;
+        sleep(Duration::from_millis(20_000)).await;
 
         let stop_at = get_current_time() + (duration as u64);
         let result = start_concurrent_connections_round(environment, count, stop_at).await;
@@ -72,6 +72,8 @@ async fn start_step(
         sleep(Duration::from_millis(200)).await;
 
         file.down().await?;
+
+        sleep(Duration::from_millis(10_000)).await;
 
         match result {
             Ok(result) => {

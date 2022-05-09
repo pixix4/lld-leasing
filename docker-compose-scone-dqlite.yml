@@ -6,6 +6,7 @@ services:
       - SCONE_LOG=DEBUG
     devices:
       - "$DEVICE"
+    privileged: true
     ports:
       - "18766:18766"
     networks:

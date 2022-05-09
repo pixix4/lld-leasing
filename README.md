@@ -102,7 +102,7 @@ Request being handled by the gateway
 ## Benchmark
 
 ```bash
-cargo run --release -p lld-benchmark | tee logs/benchmark.csv
+cargo run --release -p lld-benchmark | tee benchmark.csv
 python3 benchmark.py logs/benchmark.csv
 ```
 

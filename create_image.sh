@@ -29,8 +29,8 @@ docker pull $CLI_IMAGE
 
 # check if SGX device exists
 
-if [[ ! -c "$DEVICE" ]] ; then
-    export DEVICE_O="DEVICE"
+if [[ ! -e "$DEVICE" ]] ; then
+    export DEVICE_O="$DEVICE"
     export DEVICE="/dev/isgx"
     if [[ ! -c "$DEVICE" ]] ; then
         echo "Neither $DEVICE_O nor $DEVICE exist"
