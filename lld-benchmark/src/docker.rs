@@ -28,7 +28,7 @@ impl DockerComposeFile {
     pub async fn up(self) -> LldResult<()> {
         let mut command = Command::new("docker");
         command.arg("compose").arg("-f").arg(self.filename());
-        command.arg("up").arg("-d");
+        command.arg("up").arg("-d").arg("--force-recreate").arg("-V");
 
         debug!("Docker command: {:?}", command);
         let output = command.output().await?;

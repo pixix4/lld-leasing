@@ -1,7 +1,7 @@
 version: "3.2"
 services:
   las:
-    image: registry.scontain.com:5050/sconecuratedimages/kubernetes:las-scone5.7
+    image: registry.scontain.com:5050/sconecuratedimages/las:microsoft-azure-scone5.7
     environment:
       - SCONE_LOG=DEBUG
     devices:
