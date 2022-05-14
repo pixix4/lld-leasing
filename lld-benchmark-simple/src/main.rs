@@ -1,3 +1,5 @@
+extern crate log;
+
 use std::ops::Add;
 use std::time::{Duration, Instant};
 
@@ -177,4 +179,22 @@ pub async fn start_concurrent_connections_round(
     }
 
     Ok(result)
+}
+
+#[tokio::main]
+async fn main() -> LldResult<()> {
+    dotenv::dotenv().ok();
+    env_logger::init();
+
+    let environment = Environment {
+        http_request_uri: "http://localhost:3030/request".to_string(),
+        tcp_request_uri: "127.0.0.1:3040".to_string(),
+        ssl_cert_file: None,
+    };
+
+    let stop_at = get_current_time() + 5000;
+    let result = start_concurrent_connections_round(&environment, 16, stop_at).await?;
+    println!("{:?}", result);
+
+    Ok(())
 }

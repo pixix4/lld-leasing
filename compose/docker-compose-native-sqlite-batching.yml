@@ -2,9 +2,13 @@ version: "3.2"
 services:
   lld-server-sqlite:
     image: "pixix4/server-native-sqlite"
+    command: --mode=Batching
     ports:
       - "3030:3030"
       - "3040:3040"
+    environment:
+      - mode=Batching
+      - sqlite_optimization=true
     networks:
       lld_network:
         ipv4_address: 172.20.0.3

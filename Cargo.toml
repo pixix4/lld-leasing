@@ -7,5 +7,6 @@ members = [
     "lld-common",
     "lld-server",
     "lld-client",
-    "lld-benchmark"
+    "lld-benchmark",
+    "lld-benchmark-simple"
 ]

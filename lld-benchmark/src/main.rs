@@ -18,29 +18,51 @@ use crate::benchmark::start_concurrent_connections_round;
 arg_enum! {
     #[derive(Debug, Clone, Copy)]
     pub enum LldContainer {
-        NativeSqlite,
+        NativeSqliteNaive,
+        NativeSqliteCaching,
+        NativeSqliteBatching,
         NativeDqlite,
-        SconeSqlite,
+        NativeSqliteOptimized,
         SconeDqlite,
-    }
-}
-
-impl Default for LldContainer {
-    fn default() -> Self {
-        Self::NativeSqlite
     }
 }
 
 impl Into<DockerComposeFile> for LldContainer {
     fn into(self) -> DockerComposeFile {
         match self {
-            LldContainer::NativeSqlite => DockerComposeFile::NativeSqlite,
+            LldContainer::NativeSqliteNaive => DockerComposeFile::NativeSqliteNaive,
+            LldContainer::NativeSqliteCaching => DockerComposeFile::NativeSqliteCaching,
+            LldContainer::NativeSqliteBatching => DockerComposeFile::NativeSqliteBatching,
             LldContainer::NativeDqlite => DockerComposeFile::NativeDqlite,
-            LldContainer::SconeSqlite => DockerComposeFile::SconeSqlite,
+            LldContainer::NativeSqliteOptimized => DockerComposeFile::NativeSqliteOptimized,
             LldContainer::SconeDqlite => DockerComposeFile::SconeDqlite,
         }
     }
 }
+
+impl LldContainer {
+    async fn before_sleep(self) {
+        match self {
+            LldContainer::NativeSqliteNaive => sleep(Duration::from_millis(3000)).await,
+            LldContainer::NativeSqliteCaching => sleep(Duration::from_millis(3000)).await,
+            LldContainer::NativeSqliteBatching => sleep(Duration::from_millis(3000)).await,
+            LldContainer::NativeSqliteOptimized => sleep(Duration::from_millis(3000)).await,
+            LldContainer::NativeDqlite => sleep(Duration::from_millis(15000)).await,
+            LldContainer::SconeDqlite => sleep(Duration::from_millis(45_000)).await,
+        }
+    }
+    async fn after_sleep(self) {
+        match self {
+            LldContainer::NativeSqliteNaive => sleep(Duration::from_millis(800)).await,
+            LldContainer::NativeSqliteCaching => sleep(Duration::from_millis(800)).await,
+            LldContainer::NativeSqliteBatching => sleep(Duration::from_millis(800)).await,
+            LldContainer::NativeSqliteOptimized => sleep(Duration::from_millis(800)).await,
+            LldContainer::NativeDqlite => sleep(Duration::from_millis(1000)).await,
+            LldContainer::SconeDqlite => sleep(Duration::from_millis(10_000)).await,
+        }
+    }
+}
+
 async fn start_step(
     environment: &Environment,
     container: LldContainer,
@@ -64,7 +86,7 @@ async fn start_step(
         let file: DockerComposeFile = container.into();
         file.up().await?;
 
-        sleep(Duration::from_millis(45_000)).await;
+        container.before_sleep().await;
 
         let stop_at = get_current_time() + (duration as u64);
         let result = start_concurrent_connections_round(environment, count, stop_at).await;
@@ -73,7 +95,7 @@ async fn start_step(
 
         file.down().await?;
 
-        sleep(Duration::from_millis(10_000)).await;
+        container.after_sleep().await;
 
         match result {
             Ok(result) => {
@@ -169,16 +191,14 @@ async fn main() -> LldResult<()> {
     println!("type,count,granted_avg,rejected_avg,timeout_avg,error_avg,granted_count,rejected_count,timeout_count,error_count");
 
     for container in [
-        LldContainer::NativeSqlite,
+        // LldContainer::NativeSqliteNaive,
+        // LldContainer::NativeSqliteCaching,
+        // LldContainer::NativeSqliteBatching,
         LldContainer::NativeDqlite,
-        LldContainer::SconeSqlite,
-        LldContainer::SconeDqlite,
+        LldContainer::NativeSqliteOptimized,
+        // LldContainer::SconeDqlite,
     ] {
         let ssl_cert_file = match container {
-            LldContainer::SconeSqlite => {
-                info!("Client will use ssl encryption");
-                Some(ssl_cert_file)
-            }
             LldContainer::SconeDqlite => {
                 info!("Client will use ssl encryption");
                 Some(ssl_cert_file)
@@ -189,9 +209,11 @@ async fn main() -> LldResult<()> {
             }
         };
         let http_uri = if ssl_cert_file.is_some() {
-            m.value_of("http_uri").unwrap_or("https://localhost:3030/request")
+            m.value_of("http_uri")
+                .unwrap_or("https://localhost:3030/request")
         } else {
-            m.value_of("http_uri").unwrap_or("http://localhost:3030/request")
+            m.value_of("http_uri")
+                .unwrap_or("http://localhost:3030/request")
         };
 
         let environment = Environment {

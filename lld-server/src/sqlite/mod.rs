@@ -104,6 +104,34 @@ impl Connection {
         })
     }
 
+    pub fn enable_optimizations(&self) -> LldResult<()> {
+        unsafe {
+            ok!(
+                self.raw,
+                ffi::sqlite3_exec(
+                    self.raw,
+                    str_to_cstr!("PRAGMA synchronous=OFF").as_ptr(),
+                    None,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            );
+
+            ok!(
+                self.raw,
+                ffi::sqlite3_exec(
+                    self.raw,
+                    str_to_cstr!("PRAGMA journal_mode=WAL").as_ptr(),
+                    None,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            );
+        }
+
+        Ok(())
+    }
+
     /// Execute a statement without processing the resulting rows if any.
     #[inline]
     pub fn execute<T: AsRef<str>>(&self, statement: T) -> LldResult<()> {

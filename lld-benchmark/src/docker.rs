@@ -2,33 +2,43 @@ use lld_common::{LldError, LldResult};
 use log::debug;
 use tokio::process::Command;
 
-const FILE_NATIVE_DQLITE: &str = "docker-compose-native-dqlite.yml";
-const FILE_NATIVE_SQLITE: &str = "docker-compose-native-sqlite.yml";
-const FILE_SCONE_DQLITE: &str = "docker-compose-scone-dqlite.yml";
-const FILE_SCONE_SQLITE: &str = "docker-compose-scone-sqlite.yml";
+const FILE_NATIVE_SQLITE_NAIVE: &str = "compose/docker-compose-native-sqlite-naive.yml";
+const FILE_NATIVE_SQLITE_CACHING: &str = "compose/docker-compose-native-sqlite-caching.yml";
+const FILE_NATIVE_SQLITE_BATCHING: &str = "compose/docker-compose-native-sqlite-batching.yml";
+const FILE_NATIVE_SQLITE_OPTIMIZED: &str = "compose/docker-compose-native-sqlite-optimized.yml";
+const FILE_NATIVE_DQLITE: &str = "compose/docker-compose-native-dqlite.yml";
+const FILE_SCONE_DQLITE: &str = "compose/docker-compose-scone-dqlite.yml";
 
 #[derive(Debug, Clone, Copy)]
 pub enum DockerComposeFile {
+    NativeSqliteNaive,
+    NativeSqliteCaching,
+    NativeSqliteBatching,
     NativeDqlite,
-    NativeSqlite,
+    NativeSqliteOptimized,
     SconeDqlite,
-    SconeSqlite,
 }
 
 impl DockerComposeFile {
     const fn filename(self) -> &'static str {
         match self {
+            DockerComposeFile::NativeSqliteNaive => FILE_NATIVE_SQLITE_NAIVE,
+            DockerComposeFile::NativeSqliteCaching => FILE_NATIVE_SQLITE_CACHING,
+            DockerComposeFile::NativeSqliteBatching => FILE_NATIVE_SQLITE_BATCHING,
+            DockerComposeFile::NativeSqliteOptimized => FILE_NATIVE_SQLITE_OPTIMIZED,
             DockerComposeFile::NativeDqlite => FILE_NATIVE_DQLITE,
-            DockerComposeFile::NativeSqlite => FILE_NATIVE_SQLITE,
             DockerComposeFile::SconeDqlite => FILE_SCONE_DQLITE,
-            DockerComposeFile::SconeSqlite => FILE_SCONE_SQLITE,
         }
     }
 
     pub async fn up(self) -> LldResult<()> {
         let mut command = Command::new("docker");
         command.arg("compose").arg("-f").arg(self.filename());
-        command.arg("up").arg("-d").arg("--force-recreate").arg("-V");
+        command
+            .arg("up")
+            .arg("-d")
+            .arg("--force-recreate")
+            .arg("-V");
 
         debug!("Docker command: {:?}", command);
         let output = command.output().await?;

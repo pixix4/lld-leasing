@@ -49,9 +49,15 @@ mod database_connection {
     }
 
     impl Connection {
-        pub fn open() -> LldResult<Self> {
+        pub fn open(sqlite_optimization: bool) -> LldResult<Self> {
             info!("Connect to sqlite database");
             let connection = SqliteConnection::open("./database.db")?;
+
+            if sqlite_optimization {
+                info!("Optimize sqlite");
+                connection.enable_optimizations()?;
+            }
+
             Ok(Self { connection })
         }
 
@@ -99,7 +105,7 @@ mod database_connection {
     }
 
     impl Connection {
-        pub fn open() -> LldResult<Self> {
+        pub fn open(_sqlite_optimization: bool) -> LldResult<Self> {
             info!("Connect to dqlite database");
             let connection = DqliteConnection::open("leasings")?;
             Ok(Self { connection })
@@ -186,8 +192,8 @@ impl fmt::Debug for Database {
 }
 
 impl Database {
-    pub fn open() -> LldResult<Self> {
-        let connection = database_connection::Connection::open()?;
+    pub fn open(sqlite_optimization: bool) -> LldResult<Self> {
+        let connection = database_connection::Connection::open(sqlite_optimization)?;
         Ok(Self { connection })
     }
 
