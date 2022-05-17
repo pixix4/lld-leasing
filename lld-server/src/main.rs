@@ -67,7 +67,7 @@ async fn main() -> LldResult<()> {
     };
 
     info!("Initialize database");
-    let db = Database::open(args.sqlite_optimization)?;
+    let db = Database::open(true)?;
     db.init()?;
 
     let context = match args.mode {

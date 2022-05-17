@@ -1,23 +1,23 @@
 version: '3.2'
 services:
-    las:
-        image: registry.scontain.com:5050/sconecuratedimages/kubernetes:las-scone5.7
-        environment:
-        - SCONE_LOG=DEBUG
-        devices:
-         - "$DEVICE"
-        privileged: true
-        ports:
-         - "18766:18766"
-    lld-server-sqlite:
-        image: "pixix4/server-scone-sqlite"
-        devices:
-         - "$DEVICE"
-        entrypoint: /bin/sh
-        command: -c "sleep 20; SCONE_LOG=DEBUG SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/server_sqlite /usr/local/bin/lld-server"
-        depends_on:
-         - las
-        privileged: true
-        ports:
-         - "3030:3030"
-         - "3040:3040"
+  las:
+    image: registry.scontain.com:5050/sconecuratedimages/las:microsoft-azure-scone5.7
+    environment:
+      - SCONE_LOG=DEBUG
+    devices:
+      - "$DEVICE"
+    privileged: true
+    ports:
+      - "18766:18766"
+  lld-server-sqlite:
+    image: "pixix4/server-scone-sqlite"
+    devices:
+      - "$DEVICE"
+    entrypoint: /bin/sh
+    command: -c "sleep 20; SCONE_LOG=DEBUG SCONE_LAS_ADDR=las SCONE_CAS_ADDR=$SCONE_CAS_ADDR SCONE_CONFIG_ID=$LLD_SESSION/server_sqlite /usr/local/bin/lld-server"
+    depends_on:
+      - las
+    privileged: true
+    ports:
+      - "3030:3030"
+      - "3040:3040"
