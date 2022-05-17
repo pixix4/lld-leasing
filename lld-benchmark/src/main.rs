@@ -194,9 +194,9 @@ async fn main() -> LldResult<()> {
         // LldContainer::NativeSqliteNaive,
         // LldContainer::NativeSqliteCaching,
         // LldContainer::NativeSqliteBatching,
-        LldContainer::NativeDqlite,
-        LldContainer::NativeSqliteOptimized,
-        // LldContainer::SconeDqlite,
+        // LldContainer::NativeDqlite,
+        // LldContainer::NativeSqliteOptimized,
+        LldContainer::SconeDqlite,
     ] {
         let ssl_cert_file = match container {
             LldContainer::SconeDqlite => {
