@@ -7,6 +7,7 @@ const FILE_NATIVE_SQLITE_CACHING: &str = "compose/docker-compose-native-sqlite-c
 const FILE_NATIVE_SQLITE_BATCHING: &str = "compose/docker-compose-native-sqlite-batching.yml";
 const FILE_NATIVE_SQLITE_OPTIMIZED: &str = "compose/docker-compose-native-sqlite-optimized.yml";
 const FILE_NATIVE_DQLITE: &str = "compose/docker-compose-native-dqlite.yml";
+const FILE_NATIVE_DQLITE_NAIVE: &str = "compose/docker-compose-native-dqlite-naive.yml";
 const FILE_SCONE_DQLITE: &str = "compose/docker-compose-scone-dqlite.yml";
 
 #[derive(Debug, Clone, Copy)]
@@ -14,6 +15,7 @@ pub enum DockerComposeFile {
     NativeSqliteNaive,
     NativeSqliteCaching,
     NativeSqliteBatching,
+    NativeDqliteNaive,
     NativeDqlite,
     NativeSqliteOptimized,
     SconeDqlite,
@@ -26,6 +28,7 @@ impl DockerComposeFile {
             DockerComposeFile::NativeSqliteCaching => FILE_NATIVE_SQLITE_CACHING,
             DockerComposeFile::NativeSqliteBatching => FILE_NATIVE_SQLITE_BATCHING,
             DockerComposeFile::NativeSqliteOptimized => FILE_NATIVE_SQLITE_OPTIMIZED,
+            DockerComposeFile::NativeDqliteNaive => FILE_NATIVE_DQLITE_NAIVE,
             DockerComposeFile::NativeDqlite => FILE_NATIVE_DQLITE,
             DockerComposeFile::SconeDqlite => FILE_SCONE_DQLITE,
         }

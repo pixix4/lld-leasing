@@ -22,6 +22,7 @@ arg_enum! {
         NativeSqliteCaching,
         NativeSqliteBatching,
         NativeDqlite,
+        NativeDqliteNaive,
         NativeSqliteOptimized,
         SconeDqlite,
     }
@@ -34,6 +35,7 @@ impl Into<DockerComposeFile> for LldContainer {
             LldContainer::NativeSqliteCaching => DockerComposeFile::NativeSqliteCaching,
             LldContainer::NativeSqliteBatching => DockerComposeFile::NativeSqliteBatching,
             LldContainer::NativeDqlite => DockerComposeFile::NativeDqlite,
+            LldContainer::NativeDqliteNaive => DockerComposeFile::NativeDqliteNaive,
             LldContainer::NativeSqliteOptimized => DockerComposeFile::NativeSqliteOptimized,
             LldContainer::SconeDqlite => DockerComposeFile::SconeDqlite,
         }
@@ -48,6 +50,7 @@ impl LldContainer {
             LldContainer::NativeSqliteBatching => sleep(Duration::from_millis(3000)).await,
             LldContainer::NativeSqliteOptimized => sleep(Duration::from_millis(3000)).await,
             LldContainer::NativeDqlite => sleep(Duration::from_millis(15000)).await,
+            LldContainer::NativeDqliteNaive => sleep(Duration::from_millis(15000)).await,
             LldContainer::SconeDqlite => sleep(Duration::from_millis(45_000)).await,
         }
     }
@@ -58,6 +61,7 @@ impl LldContainer {
             LldContainer::NativeSqliteBatching => sleep(Duration::from_millis(800)).await,
             LldContainer::NativeSqliteOptimized => sleep(Duration::from_millis(800)).await,
             LldContainer::NativeDqlite => sleep(Duration::from_millis(1000)).await,
+            LldContainer::NativeDqliteNaive => sleep(Duration::from_millis(1000)).await,
             LldContainer::SconeDqlite => sleep(Duration::from_millis(10_000)).await,
         }
     }
@@ -194,9 +198,10 @@ async fn main() -> LldResult<()> {
         // LldContainer::NativeSqliteNaive,
         // LldContainer::NativeSqliteCaching,
         // LldContainer::NativeSqliteBatching,
-        // LldContainer::NativeDqlite,
+        LldContainer::NativeDqlite,
+        LldContainer::NativeDqliteNaive,
         // LldContainer::NativeSqliteOptimized,
-        LldContainer::SconeDqlite,
+        // LldContainer::SconeDqlite,
     ] {
         let ssl_cert_file = match container {
             LldContainer::SconeDqlite => {
